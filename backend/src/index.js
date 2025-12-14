@@ -1,8 +1,18 @@
 const express = require("express");
 const app = express();
 
+app.use(express.json());
+
 app.get("/health", (req, res) => {
-  res.json({ status: "i am goated" });
+  res.json({ status: "ok" });
+});
+
+app.post("/match/start", (req, res) => {
+  console.log("Matchmaking started");
+
+  res.json({
+    status: "searching"
+  });
 });
 
 app.listen(4000, () => {
