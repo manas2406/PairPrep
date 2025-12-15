@@ -14,9 +14,16 @@
 - Created initial matchmaking API: POST /match/start
 - Verified backend works independently from frontend
 ### CORS Handling
-
 - Encountered browser CORS issue when connecting frontend and backend
 - Fixed by enabling CORS middleware in Express
 - Learned difference between browser requests and Postman
+
+- Refactored backend into routes and controllers
+- Separated business logic from routing
+- Prepared backend structure for future scalability
+### In-Memory Matchmaking
+- Implemented basic matchmaking using in-memory state
+- First request enters queue, second request matches
+- Used this as a stepping stone before Redis integration
 
 
