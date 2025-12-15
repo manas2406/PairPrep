@@ -2,11 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-
 const matchRoutes = require("./routes/match.routes");
-
+const { createUser } = require("./store/users");
 const app = express();
 const server = http.createServer(app);
+
+app.use(cors());
+app.use(express.json());
 
 const io = new Server(server, {
   cors: {
@@ -14,11 +16,22 @@ const io = new Server(server, {
   },
 });
 app.set("io", io);
-app.use(cors());
-app.use(express.json());
+
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.post("/auth/signup", (req, res) => {
+  const { userId, cfHandle } = req.body;
+
+  if (!userId || !cfHandle) {
+    return res.status(400).json({ error: "userId and cfHandle required" });
+  }
+
+  createUser(userId, cfHandle);
+
+  return res.json({ status: "created" });
 });
 
 app.use("/match", matchRoutes);

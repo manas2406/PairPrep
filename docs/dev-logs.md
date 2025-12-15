@@ -39,4 +39,10 @@
 - Prevented self-matching and duplicate entries
 - Prepared system for horizontal scaling
 
+### Phase 6.2A – User Profiles & CF Handle
+
+- Added in-memory user store
+- Required Codeforces handle at signup
+- Prepared system for solved-problem exclusion
+
 
