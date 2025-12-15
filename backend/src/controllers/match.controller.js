@@ -1,26 +1,37 @@
-let waitingUser = null;
+const redis = require("../redis");
 
-function startMatch(req, res) {
-  if (waitingUser === null) {
-    waitingUser = "user1"; // fake user for now
+const QUEUE_KEY = "pairprep:queue";
 
-    console.log("User added to queue");
+async function startMatch(req, res) {
+  const socketId = req.headers["x-socket-id"];
+  const io = req.app.get("io");
 
-    return res.json({
-      status: "waiting",
-    });
+  if (!socketId) {
+    return res.status(400).json({ error: "Missing socket ID" });
   }
 
-  console.log("Match found!");
+  // Try to get someone from queue
+  const opponentSocket = await redis.rpop(QUEUE_KEY);
 
-  waitingUser = null;
+  if (!opponentSocket) {
+    // No one waiting → add self to queue
+    await redis.lpush(QUEUE_KEY, socketId);
 
-  return res.json({
-    status: "matched",
-    roomId: "room123",
-  });
+    return res.json({ status: "waiting" });
+  }
+
+  // Prevent self-matching
+  if (opponentSocket === socketId) {
+    await redis.lpush(QUEUE_KEY, socketId);
+    return res.json({ status: "waiting" });
+  }
+
+  const roomId = `room_${Date.now()}`;
+
+  io.to(opponentSocket).emit("match_found", { roomId });
+  io.to(socketId).emit("match_found", { roomId });
+
+  return res.json({ status: "matched", roomId });
 }
 
-module.exports = {
-  startMatch,
-};
+module.exports = { startMatch };

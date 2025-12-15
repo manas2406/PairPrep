@@ -1,31 +1,33 @@
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:4000");
 
 export default function Home() {
   const router = useRouter();
   const [status, setStatus] = useState("Idle");
 
+  useEffect(() => {
+    socket.on("match_found", (data) => {
+      setStatus("Matched!");
+      router.push(`/room`);
+    });
+
+    return () => {
+      socket.off("match_found");
+    };
+  }, []);
+
   async function findMatch() {
-    setStatus("Contacting server...");
+    await fetch("http://localhost:4000/match/start", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-socket-id": socket.id,
+      },
+    });
 
-    try {
-      const res = await fetch("http://localhost:4000/match/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await res.json();
-
-      if (data.status === "searching") {
-        setStatus("Searching for opponent...");
-        router.push("/match");
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus("Error contacting server");
-    }
   }
 
   return (

@@ -26,4 +26,17 @@
 - First request enters queue, second request matches
 - Used this as a stepping stone before Redis integration
 
+### Phase 3 – Real-Time Matchmaking
+
+- Integrated Socket.IO for real-time communication
+- Replaced polling with server-pushed match events
+- Implemented event-driven matchmaking flow
+
+### Phase 4 – Redis Matchmaking
+
+- Integrated Redis for matchmaking queues
+- Implemented atomic FIFO matching using Redis lists
+- Prevented self-matching and duplicate entries
+- Prepared system for horizontal scaling
+
 
