@@ -4,6 +4,9 @@ const http = require("http");
 const { Server } = require("socket.io");
 const matchRoutes = require("./routes/match.routes");
 const { createUser } = require("./store/users");
+const { getUser, setSolvedProblems } = require("./store/users");
+const { fetchSolvedProblems } = require("./utils/codeforces");
+
 const app = express();
 const server = http.createServer(app);
 
@@ -34,15 +37,55 @@ app.post("/auth/signup", (req, res) => {
   return res.json({ status: "created" });
 });
 
+app.post("/cf/fetch-solved", async (req, res) => {
+  const { userId } = req.body;
+
+  const user = getUser(userId);
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  try {
+    const solved = await fetchSolvedProblems(user.cfHandle);
+    setSolvedProblems(userId, solved);
+
+    return res.json({
+      status: "ok",
+      solvedCount: solved.size,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      error: "Failed to fetch from Codeforces",
+    });
+  }
+});
+
 app.use("/match", matchRoutes);
 
+const {
+  bindSocket,
+  unbindSocket,
+} = require("./store/sockets");
+
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  const { userId } = socket.handshake.query;
+
+  if (!userId) {
+    console.log("Socket connected without userId, disconnecting");
+    socket.disconnect();
+    return;
+  }
+
+  bindSocket(socket.id, userId);
+  console.log(`User ${userId} connected via socket ${socket.id}`);
 
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    unbindSocket(socket.id);
+    console.log(`User ${userId} disconnected`);
   });
 });
+
 
 server.listen(4000, () => {
   console.log("Backend + WebSocket running on port 4000");

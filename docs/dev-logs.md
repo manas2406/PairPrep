@@ -45,4 +45,23 @@
 - Required Codeforces handle at signup
 - Prepared system for solved-problem exclusion
 
+### Phase 6.2B – Codeforces Solved Problem Fetching
+
+- Integrated Codeforces user.status API
+- Extracted accepted problem IDs
+- Cached solved problems per user
+- Prepared exclusion logic for question selection
+
+### Phase 6.2C – Solved Problem Exclusion
+
+- Extended problem selector to exclude solved problems
+- Combined solved history of both users
+- Ensured assigned problem is new for both participants
+
+### Phase 6.3 – User ↔ Socket Mapping
+
+- Bound users to sockets during WebSocket handshake
+- Introduced bidirectional socket-user mapping
+- Removed hardcoded user identities
+- Enabled correct problem exclusion per match
 

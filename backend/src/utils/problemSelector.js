@@ -1,8 +1,14 @@
 const problems = require("../data/codeforces_problems.json");
 
-function selectProblem(minRating, maxRating) {
+/*
+ excludedProblems: Set of problemIds like "1760C"
+*/
+function selectProblem(minRating, maxRating, excludedProblems = new Set()) {
   const candidates = problems.filter(
-    (p) => p.rating >= minRating && p.rating <= maxRating
+    (p) =>
+      p.rating >= minRating &&
+      p.rating <= maxRating &&
+      !excludedProblems.has(p.id)
   );
 
   if (candidates.length === 0) {
