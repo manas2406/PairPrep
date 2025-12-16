@@ -2,6 +2,7 @@ const redis = require("../redis");
 const { selectProblem } = require("../utils/problemSelector");
 const { getUser } = require("../store/users");
 const { getUserBySocket } = require("../store/sockets");
+const { createRoom } = require("../store/rooms");
 
 
 const QUEUE_KEY = "pairprep:queue";
@@ -77,6 +78,13 @@ async function startMatch(req, res) {
                 error: "No unsolved problem available",
             });
         }
+
+        createRoom(
+            roomId,
+            problem.id,
+            [userIdA, userIdB]
+        );
+
         // Notify both users in real-time
         io.to(opponentSocket).emit("match_found", {
             roomId,

@@ -65,3 +65,8 @@
 - Removed hardcoded user identities
 - Enabled correct problem exclusion per match
 
+### Phase 6.4 – Submission & Result UI
+
+- Clearly modeled match lifecycle states
+- Integrated external submission verification
+- Provided real-time feedback and result display

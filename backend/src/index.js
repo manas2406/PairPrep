@@ -6,12 +6,15 @@ const matchRoutes = require("./routes/match.routes");
 const { createUser } = require("./store/users");
 const { getUser, setSolvedProblems } = require("./store/users");
 const { fetchSolvedProblems } = require("./utils/codeforces");
+const { getUserBySocket } = require("./store/sockets");
+const submissionRoutes = require("./routes/submission.routes");
 
 const app = express();
 const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
+app.use("/submission", submissionRoutes);
 
 const io = new Server(server, {
   cors: {
@@ -72,14 +75,39 @@ io.on("connection", (socket) => {
   const { userId } = socket.handshake.query;
 
   if (!userId) {
-    console.log("Socket connected without userId, disconnecting");
     socket.disconnect();
     return;
   }
 
   bindSocket(socket.id, userId);
-  console.log(`User ${userId} connected via socket ${socket.id}`);
 
+  socket.on("join_room", ({ roomId }) => {
+    socket.join(roomId);
+    console.log(`User ${userId} joined room ${roomId}`);
+  });
+
+  socket.on("chat_message", ({ roomId, message }) => {
+    const sender = getUserBySocket(socket.id);
+
+    if (!sender) return;
+
+    io.to(roomId).emit("chat_message", {
+      userId: sender,
+      message,
+      time: Date.now(),
+    });
+  });
+  socket.on("leave_room", ({ roomId }) => {
+    const userId = getUserBySocket(socket.id);
+
+    socket.leave(roomId);
+
+    socket.to(roomId).emit("user_left", {
+      userId,
+    });
+
+    console.log(`User ${userId} left room ${roomId}`);
+  });
   socket.on("disconnect", () => {
     unbindSocket(socket.id);
     console.log(`User ${userId} disconnected`);
