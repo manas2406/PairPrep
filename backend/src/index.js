@@ -85,13 +85,19 @@ io.on("connection", (socket) => {
     const sender = getUserBySocket(socket.id);
 
     if (!sender) return;
-
+    console.log("CHAT:", roomId, message);
+    console.log("EMITTING to room:", roomId, io.sockets.adapter.rooms.get(roomId));
     io.to(roomId).emit("chat_message", {
       userId: sender,
       message,
       time: Date.now(),
     });
   });
+  socket.on("join_room", ({ roomId }) => {
+  socket.join(roomId);
+  console.log("JOIN ROOM", roomId, socket.id);
+});
+
   socket.on("leave_room", ({ roomId }) => {
     const userId = getUserBySocket(socket.id);
 

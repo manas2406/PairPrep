@@ -1,26 +1,122 @@
 [
   {
-    "id": "1760C",
-    "name": "Advantage",
-    "rating": 1100,
-    "url": "https://codeforces.com/contest/1760/problem/C"
+    "id": "4A",
+    "name": "Watermelon",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/4/A"
   },
   {
-    "id": "1742E",
-    "name": "Scuza",
-    "rating": 1100,
-    "url": "https://codeforces.com/contest/1742/problem/E"
+    "id": "34B",
+    "name": "Bow-wow and the Timetable",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/34/B"
   },
   {
-    "id": "1722C",
-    "name": "Word Game",
-    "rating": 1100,
-    "url": "https://codeforces.com/contest/1722/problem/C"
+    "id": "160A",
+    "name": "Twins",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/160/A"
   },
   {
-    "id": "1676H2",
-    "name": "Maximum Crossings (Hard Version)",
-    "rating": 1100,
-    "url": "https://codeforces.com/contest/1676/problem/H2"
+    "id": "281A",
+    "name": "Word Capitalization",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/281/A"
+  },
+  {
+    "id": "580A",
+    "name": "Kefa and First Steps",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/580/A"
+  },
+  {
+    "id": "677A",
+    "name": "Vanya and Fence",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/677/A"
+  },
+  {
+    "id": "705A",
+    "name": "Hulk",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/705/A"
+  },
+  {
+    "id": "785A",
+    "name": "Anton and Polyhedrons",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/785/A"
+  },
+  {
+    "id": "977A",
+    "name": "Wrong Subtraction",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/977/A"
+  },
+  {
+    "id": "110A",
+    "name": "Nearly Lucky Number",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/110/A"
+  },
+  {
+    "id": "118A",
+    "name": "Epic Game",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/118/A"
+  },
+  {
+    "id": "131A",
+    "name": "cAPS lOCK",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/131/A"
+  },
+  {
+    "id": "208A",
+    "name": "Dubstep",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/208/A"
+  },
+  {
+    "id": "236A",
+    "name": "Boy or Girl",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/236/A"
+  },
+  {
+    "id": "266A",
+    "name": "Stones on the Table",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/266/A"
+  },
+  {
+    "id": "271A",
+    "name": "Beautiful Year",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/271/A"
+  },
+  {
+    "id": "294A",
+    "name": "Shaass and Oskols",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/294/A"
+  },
+  {
+    "id": "344A",
+    "name": "Magnets",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/344/A"
+  },
+  {
+    "id": "546A",
+    "name": "Soldier and Bananas",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/546/A"
+  },
+  {
+    "id": "791A",
+    "name": "Bear and Big Brother",
+    "rating": 1000,
+    "url": "https://codeforces.com/problemset/problem/791/A"
   }
 ]

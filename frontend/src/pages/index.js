@@ -6,7 +6,7 @@ export default function Home() {
   const [status, setStatus] = useState("Idle");
   const [roomId, setRoomId] = useState(null);
   const [problem, setProblem] = useState(null);
-  const [submissionLink, setSubmissionLink] = useState("");
+  const [submissionId, setSubmissionId] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -17,31 +17,28 @@ export default function Home() {
   useEffect(() => {
     if (socketRef.current) return; // 👈 THIS is the key line
 
-    const userId = localStorage.getItem("userId");
+    const userId = sessionStorage.getItem("userId");
     if (!userId) return;
 
     const socket = io("http://localhost:4000", {
-      query: { userId },
-    });
+    query: { userId },
+  });
 
-    socketRef.current = socket;
+  socketRef.current = socket;
 
     if (!userId) {
-      console.warn("No userId found in localStorage");
+      console.warn("No userId found in sessionStorage");
       return;
     }
-
-    socketRef.current = socket;
-    fetch("http://localhost:4000/cf/fetch-solved", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: localStorage.getItem("userId"),
-      }),
-    });
+    console.log(userId);
 
     socket.on("connect", () => {
       console.log("Socket connected:", socket.id);
+    });
+
+    socket.on("chat_message", (msg) => {
+      console.log("📩 CHAT RECEIVED:", msg);
+      setMessages((prev) => [...prev, msg]);
     });
 
     socket.on("match_found", (data) => {
@@ -50,12 +47,10 @@ export default function Home() {
       setStatus("Matched");
       setMessages([]);
       setResult(null);
-      setSubmissionLink("");
+      setSubmissionId("");
       setError(null);
-    });
 
-    socket.on("chat_message", (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      socket.emit("join_room", { roomId: data.roomId });
     });
 
     socket.on("user_left", ({ userId }) => {
@@ -64,7 +59,10 @@ export default function Home() {
         { userId: "SYSTEM", message: `${userId} left the room` },
       ]);
     });
+
     socket.on("match_finished", ({ winner }) => {
+      console.log("🔥 SOCKET match_finished received. winner =", winner);
+      console.log("🔥 local userId =", sessionStorage.getItem("userId"));
       setResult(winner);
       setStatus("Finished");
     });
@@ -73,9 +71,17 @@ export default function Home() {
       console.log("Socket disconnected");
     });
 
+    fetch("http://localhost:4000/cf/fetch-solved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: sessionStorage.getItem("userId"),
+      }),
+    });
+
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      // socket.disconnect();
+      // socketRef.current = null;
     };
   }, []);
 
@@ -98,26 +104,35 @@ export default function Home() {
   /* ---------------- SUBMISSION ---------------- */
 
   async function submitSolution() {
-    console.log("Submitting with roomId:", roomId);
+    // console.log("🟡 FRONTEND submit clicked");
+    // console.log("roomId:", roomId);
+    // console.log("userId:", sessionStorage.getItem("userId"));
+    // console.log("submissionId:", submissionId);
+
     setStatus("Verifying...");
     setError(null);
 
     const res = await fetch("http://localhost:4000/submission/submit", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-socket-id": socketRef.current.id,
+      },
       body: JSON.stringify({
         roomId,
-        userId: localStorage.getItem("userId"),
-        submissionUrl: submissionLink,
+        submissionId,
       }),
     });
+    if (res.status === 409) {
+      setError("Judging in progress. Please retry in a few seconds.");
+      setStatus("Matched");
+      return;
+    }
 
     const data = await res.json();
+    console.log("🟢 FRONTEND HTTP response:", data);
 
-    if (res.ok) {
-      setResult(data.winner);
-      setStatus("Finished");
-    } else {
+    if (!res.ok) {
       setError(data.error);
       setStatus("Matched");
     }
@@ -133,7 +148,7 @@ export default function Home() {
     setRoomId(null);
     setProblem(null);
     setMessages([]);
-    setSubmissionLink("");
+    setSubmissionId("");
     setResult(null);
     setError(null);
     setStatus("Idle");
@@ -142,9 +157,9 @@ export default function Home() {
   /* ---------------- UI ---------------- */
 
   return (
+
     <div style={{ padding: "40px", fontFamily: "Arial" }}>
       <h1>PairPrep</h1>
-
       <p>
         Status: <strong>{status}</strong>
       </p>
@@ -187,10 +202,10 @@ export default function Home() {
         <div style={{ marginTop: "20px" }}>
           <input
             type="text"
-            placeholder="Paste Codeforces submission link"
-            value={submissionLink}
-            onChange={(e) => setSubmissionLink(e.target.value)}
-            style={{ width: "400px", padding: "8px" }}
+            placeholder="Enter Codeforces submission ID"
+            value={submissionId}
+            onChange={(e) => setSubmissionId(e.target.value)}
+            style={{ width: "300px", padding: "8px" }}
           />
 
           <button onClick={submitSolution} style={{ marginLeft: "10px" }}>
@@ -203,7 +218,7 @@ export default function Home() {
       {result && (
         <div style={{ marginTop: "30px" }}>
           <h2>
-            {result === localStorage.getItem("userId")
+            {result === sessionStorage.getItem("userId")
               ? "🏆 You won!"
               : "😞 You lost"}
           </h2>
