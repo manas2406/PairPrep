@@ -81,11 +81,6 @@ io.on("connection", (socket) => {
 
   bindSocket(socket.id, userId);
 
-  socket.on("join_room", ({ roomId }) => {
-    socket.join(roomId);
-    console.log(`User ${userId} joined room ${roomId}`);
-  });
-
   socket.on("chat_message", ({ roomId, message }) => {
     const sender = getUserBySocket(socket.id);
 

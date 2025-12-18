@@ -8,10 +8,10 @@ function bindSocket(socketId, userId) {
 
 function unbindSocket(socketId) {
   const userId = socketToUser.get(socketId);
+  socketToUser.delete(socketId);
   if (userId) {
     userToSocket.delete(userId);
   }
-  socketToUser.delete(socketId);
 }
 
 function getUserBySocket(socketId) {

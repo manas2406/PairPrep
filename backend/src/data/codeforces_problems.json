@@ -2,7 +2,7 @@
   {
     "id": "1760C",
     "name": "Advantage",
-    "rating": 900,
+    "rating": 1100,
     "url": "https://codeforces.com/contest/1760/problem/C"
   },
   {
@@ -14,13 +14,13 @@
   {
     "id": "1722C",
     "name": "Word Game",
-    "rating": 800,
+    "rating": 1100,
     "url": "https://codeforces.com/contest/1722/problem/C"
   },
   {
     "id": "1676H2",
     "name": "Maximum Crossings (Hard Version)",
-    "rating": 1400,
+    "rating": 1100,
     "url": "https://codeforces.com/contest/1676/problem/H2"
   }
 ]

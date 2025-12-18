@@ -15,18 +15,30 @@ export default function Home() {
   /* ---------------- SOCKET SETUP ---------------- */
 
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
+    if (socketRef.current) return; // 👈 THIS is the key line
 
-    if (!userId) {
-      console.warn("No userId found in localStorage");
-      return;
-    }
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
 
     const socket = io("http://localhost:4000", {
       query: { userId },
     });
 
     socketRef.current = socket;
+
+    if (!userId) {
+      console.warn("No userId found in localStorage");
+      return;
+    }
+
+    socketRef.current = socket;
+    fetch("http://localhost:4000/cf/fetch-solved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: localStorage.getItem("userId"),
+      }),
+    });
 
     socket.on("connect", () => {
       console.log("Socket connected:", socket.id);
@@ -40,8 +52,6 @@ export default function Home() {
       setResult(null);
       setSubmissionLink("");
       setError(null);
-
-      socket.emit("join_room", { roomId: data.roomId });
     });
 
     socket.on("chat_message", (msg) => {
