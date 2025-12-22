@@ -1,112 +1,83 @@
 const axios = require("axios");
+const Match = require("../models/Match");
+const User = require("../models/User");
 const { getRoom, finishRoom } = require("../store/rooms");
-const { getUser } = require("../store/users");
-const { getSocketByUser } = require("../store/sockets");
 const { getUserBySocket } = require("../store/sockets");
 
-
-/*
-  Contract:
-  Frontend sends ONLY submissionId (number)
-*/
-
 async function submitLink(req, res) {
-    console.log("🔵 BACKEND /submission/submit body:", req.body);
-    const socketId = req.headers["x-socket-id"];
-    const userId = getUserBySocket(socketId);
+  const { roomId, submissionId } = req.body;
+  const socketId = req.headers["x-socket-id"];
 
-    if (!userId) {
-        return res.status(401).json({ error: "Invalid socket" });
+  if (!roomId || !submissionId || !socketId) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const userId = getUserBySocket(socketId);
+  if (!userId) {
+    return res.status(401).json({ error: "Invalid socket" });
+  }
+
+  const room = getRoom(roomId);
+  if (!room || room.finished) {
+    return res.status(400).json({ error: "Invalid room" });
+  }
+
+  if (!room.participants.includes(userId)) {
+    return res.status(403).json({ error: "Not a participant" });
+  }
+
+  try {
+    const user = await User.findOne({ username: userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
-    const { roomId, submissionId } = req.body;
+
+    // Fetch submissions from Codeforces
+    const resp = await axios.get(
+      `https://codeforces.com/api/user.status?handle=${user.cfHandle}`
+    );
+
+    const submission = resp.data.result.find(
+      (s) => String(s.id) === submissionId
+    );
+
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found yet" });
+    }
+
+    if (submission.verdict !== "OK") {
+      return res.status(400).json({ error: "Submission not accepted" });
+    }
+
+    const solvedProblemId =
+      submission.problem.contestId + submission.problem.index;
+
+    if (solvedProblemId !== room.problemId) {
+      return res.status(400).json({ error: "Wrong problem submitted" });
+    }
+
+    // Finish room
+    finishRoom(roomId, userId);
+
+    // Persist match result
+    await Match.create({
+      roomId,
+      participants: room.participants,
+      problemId: room.problemId,
+      winner: userId,
+    });
+
     const io = req.app.get("io");
+    io.to(roomId).emit("match_finished", { winner: userId });
 
-    // ----------- Validation -----------
-
-    if (!roomId || !submissionId || !userId) {
-        return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    if (!submissionId || !/^\d+$/.test(submissionId)) {
-        return res.status(400).json({ error: "Invalid submission ID" });
-    }
-
-    const room = getRoom(roomId);
-    if (!room || room.finished) {
-        return res.status(400).json({ error: "Invalid room" });
-    }
-
-    if (!room.participants.includes(userId)) {
-        return res.status(403).json({ error: "Not a participant" });
-    }
-
-    const user = getUser(userId);
-    if (!user || !user.cfHandle) {
-        return res.status(400).json({ error: "Invalid user" });
-    }
-
-    // ----------- Codeforces Verification -----------
-    console.log("🔵 Verifying submissionId:", submissionId, "for user:", userId);
-    try {
-        const resp = await axios.get(
-            `https://codeforces.com/api/user.status?handle=${user.cfHandle}`
-        );
-
-        const submission = resp.data.result.find(
-            (s) => String(s.id) === String(submissionId)
-        );
-        console.log("🔵 Found submission:", submission?.id, submission?.verdict);
-        if (!submission) {
-            return res.status(404).json({ error: "Submission not found" });
-        }
-
-        if (submission.verdict === "TESTING" || submission.verdict === "RUNNING") {
-            return res.status(409).json({
-                error: "Submission is still being judged. Please try again in a few seconds.",
-            });
-        }
-
-        if (submission.verdict !== "OK") {
-            return res.status(400).json({
-                error: `Submission verdict is ${submission.verdict}`,
-            });
-        }
-
-        const solvedProblemId =
-            submission.problem.contestId + submission.problem.index;
-
-        if (solvedProblemId !== room.problemId) {
-            return res.status(400).json({ error: "Wrong problem submitted" });
-        }
-
-        // ----------- Mark room finished -----------
-
-        finishRoom(roomId, userId);
-
-        // Update solved set (important for future exclusion)
-        user.solvedProblems.add(solvedProblemId);
-
-        // ----------- Notify both users (SOCKET = SOURCE OF TRUTH) -----------
-        console.log("🏁 Declaring winner:", userId, "for room:", roomId);
-        room.participants.forEach((uid) => {
-            const socketId = getSocketByUser(uid);
-            if (socketId) {
-                io.to(socketId).emit("match_finished", {
-                    winner: userId,
-                });
-            }
-        });
-
-        return res.json({
-            status: "accepted",
-            winner: userId,
-        });
-    } catch (err) {
-        console.error("Submission verification failed:", err);
-        return res.status(500).json({ error: "Verification failed" });
-    }
+    return res.json({
+      status: "accepted",
+      winner: userId,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Submission verification failed" });
+  }
 }
 
-module.exports = {
-    submitLink,
-};
+module.exports = { submitLink };

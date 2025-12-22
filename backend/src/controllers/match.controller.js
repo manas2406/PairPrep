@@ -1,108 +1,84 @@
 const redis = require("../redis");
-const { getUserBySocket, getSocketByUser } = require("../store/sockets");
-const { getUser } = require("../store/users");
-const { createRoom } = require("../store/rooms");
+const User = require("../models/User");
 const { selectProblem } = require("../utils/problemSelector");
+const { getUserBySocket } = require("../store/sockets");
+const { createRoom } = require("../store/rooms");
 
 const QUEUE_KEY = "pairprep:queue";
-
-/*
-  Redis-based matchmaking (STABLE + SIMPLE)
-
-  - Redis stores USER IDS (never socket IDs)
-  - Socket IDs are resolved at runtime
-  - No room joins required for matching
-*/
 
 async function startMatch(req, res) {
   const socketId = req.headers["x-socket-id"];
   const io = req.app.get("io");
 
-  console.log("➡️ /match/start called with socket:", socketId);
-
   if (!socketId) {
     return res.status(400).json({ error: "Missing socket ID" });
   }
 
-  const userId = getUserBySocket(socketId);
-  if (!userId) {
-    return res.status(400).json({ error: "Socket not bound to user" });
-  }
-
   try {
-    // Try to pop a waiting opponent (USER ID)
-    const opponentUserId = await redis.rpop(QUEUE_KEY);
+    const currentUserId = getUserBySocket(socketId);
+    if (!currentUserId) {
+      return res.status(400).json({ error: "Invalid socket" });
+    }
 
-    // No opponent → enqueue self
-    if (!opponentUserId || opponentUserId === userId) {
-      await redis.lpush(QUEUE_KEY, userId);
-      console.log("⏳ User waiting:", userId);
+    // Try to get opponent
+    const opponentSocket = await redis.rpop(QUEUE_KEY);
+
+    // No opponent → wait
+    if (!opponentSocket) {
+      await redis.lpush(QUEUE_KEY, socketId);
       return res.json({ status: "waiting" });
     }
 
-    console.log("🤝 Match:", opponentUserId, "vs", userId);
-
-    const userA = getUser(opponentUserId);
-    const userB = getUser(userId);
-
-    if (!userA || !userB) {
-      // Safety: put opponent back
-      await redis.lpush(QUEUE_KEY, opponentUserId);
-      return res.status(400).json({ error: "User profile missing" });
+    // Prevent self-match
+    if (opponentSocket === socketId) {
+      await redis.lpush(QUEUE_KEY, socketId);
+      return res.json({ status: "waiting" });
     }
 
-    // Exclude already solved problems (SAFE, does not block)
-    const excluded = new Set([
+    const opponentUserId = getUserBySocket(opponentSocket);
+    if (!opponentUserId) {
+      return res.status(400).json({ error: "Opponent socket invalid" });
+    }
+
+    // Fetch both users from MongoDB
+    const [userA, userB] = await Promise.all([
+      User.findOne({ username: currentUserId }),
+      User.findOne({ username: opponentUserId }),
+    ]);
+
+    if (!userA || !userB) {
+      return res.status(400).json({ error: "User not found in DB" });
+    }
+
+    // Combine solved problems
+    const excludedProblems = new Set([
       ...userA.solvedProblems,
       ...userB.solvedProblems,
     ]);
 
-    const problem =
-      selectProblem(800, 1200, excluded) ||
-      {
-        id: "FALLBACK",
-        name: "Fallback Problem",
-        rating: 800,
-        url: "https://codeforces.com/problemset",
-      };
+    const problem = selectProblem(800, 1200, excludedProblems);
+
+    if (!problem) {
+      await redis.lpush(QUEUE_KEY, opponentSocket);
+      return res.status(500).json({ error: "No unsolved problem available" });
+    }
 
     const roomId = `room_${Date.now()}`;
 
-    createRoom(roomId, problem.id, [opponentUserId, userId]);
+    createRoom(roomId, problem.id, [userA.username, userB.username]);
 
-    // 🔑 Emit match to BOTH users directly
-    const socketA = getSocketByUser(opponentUserId);
-    const socketB = getSocketByUser(userId);
-
-    if (socketA) {
-      io.to(socketA).emit("match_found", {
-        roomId,
-        problem,
-      });
-    }
-
-    if (socketB) {
-      io.to(socketB).emit("match_found", {
-        roomId,
-        problem,
-      });
-    }
+    io.to(socketId).emit("match_found", { roomId, problem });
+    io.to(opponentSocket).emit("match_found", { roomId, problem });
 
     return res.json({
       status: "matched",
       roomId,
+      problem,
     });
   } catch (err) {
-    console.error("🔥 MATCHMAKING CRASH 🔥");
-    console.error(err.stack);
-
-    return res.status(500).json({
-      error: "Matchmaking crashed",
-      message: err.message,
-    });
+    console.error("Matchmaking error:", err);
+    return res.status(500).json({ error: "Matchmaking failed" });
   }
 }
 
-module.exports = {
-  startMatch,
-};
+module.exports = { startMatch };

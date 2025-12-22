@@ -1,13 +1,16 @@
 const express = require("express");
 const cors = require("cors");
+const User = require("./models/User");
 const http = require("http");
 const { Server } = require("socket.io");
 const matchRoutes = require("./routes/match.routes");
 const { createUser } = require("./store/users");
+const connectDB = require("./db");
 const { getUser, setSolvedProblems } = require("./store/users");
 const { fetchSolvedProblems } = require("./utils/codeforces");
 const { getUserBySocket } = require("./store/sockets");
 const submissionRoutes = require("./routes/submission.routes");
+require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
@@ -28,33 +31,55 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/auth/signup", (req, res) => {
+app.post("/auth/signup", async (req, res) => {
   const { userId, cfHandle } = req.body;
 
   if (!userId || !cfHandle) {
     return res.status(400).json({ error: "userId and cfHandle required" });
   }
 
-  createUser(userId, cfHandle);
+  try {
+    const existingUser = await User.findOne({ username: userId });
 
-  return res.json({ status: "created" });
+    if (existingUser) {
+      return res.status(409).json({ error: "User already exists" });
+    }
+
+    const user = await User.create({
+      username: userId,
+      cfHandle,
+    });
+
+    return res.json({
+      status: "created",
+      user: {
+        username: user.username,
+        cfHandle: user.cfHandle,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to create user" });
+  }
 });
 
 app.post("/cf/fetch-solved", async (req, res) => {
   const { userId } = req.body;
-
-  const user = getUser(userId);
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
   try {
+    const user = await User.findOne({ username: userId });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const solved = await fetchSolvedProblems(user.cfHandle);
-    setSolvedProblems(userId, solved);
+
+    user.solvedProblems = Array.from(solved);
+    await user.save();
 
     return res.json({
       status: "ok",
-      solvedCount: solved.size,
+      solvedCount: user.solvedProblems.length,
     });
   } catch (err) {
     console.error(err);
@@ -63,6 +88,7 @@ app.post("/cf/fetch-solved", async (req, res) => {
     });
   }
 });
+
 
 app.use("/match", matchRoutes);
 
@@ -94,9 +120,9 @@ io.on("connection", (socket) => {
     });
   });
   socket.on("join_room", ({ roomId }) => {
-  socket.join(roomId);
-  console.log("JOIN ROOM", roomId, socket.id);
-});
+    socket.join(roomId);
+    console.log("JOIN ROOM", roomId, socket.id);
+  });
 
   socket.on("leave_room", ({ roomId }) => {
     const userId = getUserBySocket(socket.id);
@@ -115,6 +141,7 @@ io.on("connection", (socket) => {
   });
 });
 
+connectDB();
 
 server.listen(4000, () => {
   console.log("Backend + WebSocket running on port 4000");

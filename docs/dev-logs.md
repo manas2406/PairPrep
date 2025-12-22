@@ -38,6 +38,9 @@
 - Implemented atomic FIFO matching using Redis lists
 - Prevented self-matching and duplicate entries
 - Prepared system for horizontal scaling
+<!-- 
+### Phase 5 – 
+-added in-memory matchmaking -->
 
 ### Phase 6.2A – User Profiles & CF Handle
 
@@ -70,3 +73,45 @@
 - Clearly modeled match lifecycle states
 - Integrated external submission verification
 - Provided real-time feedback and result display
+
+### Phase 7.1 – MongoDB Integration
+
+- Integrated MongoDB Atlas as the primary persistent database
+- Moved all configuration (ports, DB URI, secrets) to environment variables
+- Established stable database connection using Mongoose
+- Eliminated reliance on volatile in-memory storage for core data
+
+### Phase 7.2 – Persistent User Model
+
+- Designed MongoDB User schema for usernames, Codeforces handles, passwords, and solved problems
+- Migrated signup flow from in-memory store to MongoDB
+- Refactored solved-problem fetching to persist results in database
+- Prepared user data layer for dashboards and analytics
+
+### Phase 7.3 – Matchmaking Refactor (MongoDB + Redis)
+
+- Refactored matchmaking logic to fetch users directly from MongoDB
+- Restricted Redis usage strictly to queue coordination and atomic matching
+- Used socket-to-user mapping to identify participants during matchmaking
+- Ensured matchmaking remains race-condition safe and horizontally scalable
+
+### Phase 7.4 – Secure Submission Verification
+
+- Refactored submission verification to derive user identity from socket bindings
+- Removed trust in frontend-sent user identifiers
+- Integrated Codeforces API for verdict and problem validation
+- Ensured backend-controlled winner determination
+
+### Phase 7.5 – Match History Persistence
+
+- Introduced Match schema to persist completed matches
+- Stored room ID, participants, problem ID, winner, and timestamps
+- Persisted match results immediately after successful verification
+- Enabled future features like match history and leaderboards
+
+### Phase 7.6 – Real-Time Room & Chat Stabilization
+
+- Fixed socket lifecycle issues causing premature disconnects
+- Stabilized room join and leave logic for post-match discussions
+- Ensured chat events do not interfere with submission flow
+- Achieved reliable real-time communication across full match lifecycle
