@@ -115,3 +115,50 @@
 - Stabilized room join and leave logic for post-match discussions
 - Ensured chat events do not interfere with submission flow
 - Achieved reliable real-time communication across full match lifecycle
+
+## Phase 8.1 – Environment Configuration & Deployment Readiness
+
+- Removed hardcoded ports and URLs from frontend and backend
+- Introduced environment variables for API base URL, ports, and secrets
+- Configured `.env` usage for local development and production readiness
+- Ensured sensitive configuration files are excluded via `.gitignore`
+- Prepared application for cloud deployment without code changes
+
+## Phase 8.2 – Database Integration (MongoDB)
+
+- Integrated MongoDB as the persistent data store for users
+- Defined User schema with username, password hash, and Codeforces handle
+- Replaced in-memory user storage with MongoDB-backed models
+- Verified database connectivity using environment-based connection strings
+- Enabled persistent user accounts across server restarts
+
+## Phase 8.3 – JWT Authentication & Secure Identity Handling
+
+- Implemented JWT-based authentication for login and signup
+- Issued signed tokens upon successful authentication
+- Secured protected endpoints using JWT verification middleware
+- Migrated user identity handling from frontend-controlled values to backend-derived identity
+- Updated WebSocket authentication to validate users via JWT instead of query params
+
+### Phase 8.4 – Login & Signup UI
+
+- Implemented login and signup pages using Next.js
+- Integrated JWT-based authentication with backend
+- Stored authentication token in sessionStorage
+- Redirected unauthenticated users to login page
+
+### Phase 8.5 – UI & UX Completion
+
+- Added global navigation bar with client-side routing
+- Implemented logout by clearing JWT session and redirecting to login
+- Created dashboard page displaying user profile data
+- Protected authenticated routes using token guards
+- Improved overall UI consistency and app structure
+
+
+### Phase 8.6 – UI Polish
+
+- Introduced consistent page layout and card-based UI
+- Improved status visibility with visual indicators
+- Polished problem, submission, result, and chat sections
+- Enhanced room experience with clear structure and flow

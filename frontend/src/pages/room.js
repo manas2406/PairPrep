@@ -1,4 +1,13 @@
+import { useEffect } from "react";
+
+
 export default function Room() {
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/login";
+    }
+  }, []);
   return (
     <div style={{ padding: "40px", fontFamily: "Arial" }}>
       <h1>1v1 Coding Room</h1>

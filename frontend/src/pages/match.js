@@ -2,6 +2,12 @@ import { useRouter } from "next/router";
 import { useState } from "react";
 
 export default function Match() {
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/login";
+    }
+  }, []);
   const router = useRouter();
   const [status, setStatus] = useState("Searching...");
 

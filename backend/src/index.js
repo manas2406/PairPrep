@@ -1,11 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const User = require("./models/User");
+const authMiddleware = require("./middleware/auth");
 const http = require("http");
 const { Server } = require("socket.io");
 const matchRoutes = require("./routes/match.routes");
 const { createUser } = require("./store/users");
 const connectDB = require("./db");
+const jwt = require("jsonwebtoken");
 const { getUser, setSolvedProblems } = require("./store/users");
 const { fetchSolvedProblems } = require("./utils/codeforces");
 const { getUserBySocket } = require("./store/sockets");
@@ -17,7 +19,7 @@ const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
-app.use("/submission", submissionRoutes);
+app.use("/submission", authMiddleware, submissionRoutes);
 
 const io = new Server(server, {
   cors: {
@@ -31,27 +33,34 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/auth/signup", async (req, res) => {
-  const { userId, cfHandle } = req.body;
+const bcrypt = require("bcryptjs");
+const { generateToken } = require("./utils/auth");
 
-  if (!userId || !cfHandle) {
-    return res.status(400).json({ error: "userId and cfHandle required" });
+app.post("/auth/signup", async (req, res) => {
+  const { userId, cfHandle, password } = req.body;
+
+  if (!userId || !cfHandle || !password) {
+    return res.status(400).json({ error: "All fields required" });
   }
 
   try {
     const existingUser = await User.findOne({ username: userId });
-
     if (existingUser) {
       return res.status(409).json({ error: "User already exists" });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await User.create({
       username: userId,
       cfHandle,
+      password: hashedPassword,
     });
 
+    const token = generateToken(user.username);
+
     return res.json({
-      status: "created",
+      token,
       user: {
         username: user.username,
         cfHandle: user.cfHandle,
@@ -59,9 +68,43 @@ app.post("/auth/signup", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to create user" });
+    return res.status(500).json({ error: "Signup failed" });
   }
 });
+
+app.post("/auth/login", async (req, res) => {
+  const { userId, password } = req.body;
+
+  if (!userId || !password) {
+    return res.status(400).json({ error: "All fields required" });
+  }
+
+  try {
+    const user = await User.findOne({ username: userId });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = generateToken(user.username);
+
+    return res.json({
+      token,
+      user: {
+        username: user.username,
+        cfHandle: user.cfHandle,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Login failed" });
+  }
+});
+
 
 app.post("/cf/fetch-solved", async (req, res) => {
   const { userId } = req.body;
@@ -90,7 +133,7 @@ app.post("/cf/fetch-solved", async (req, res) => {
 });
 
 
-app.use("/match", matchRoutes);
+app.use("/match", authMiddleware, matchRoutes);
 
 const {
   bindSocket,
@@ -98,14 +141,17 @@ const {
 } = require("./store/sockets");
 
 io.on("connection", (socket) => {
-  const { userId } = socket.handshake.query;
-
-  if (!userId) {
+  const token = socket.handshake.auth?.token;
+  if (!token) {
     socket.disconnect();
     return;
   }
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const userId = decoded.userId;
 
   bindSocket(socket.id, userId);
+
+  console.log(`User ${userId} connected via socket ${socket.id}`);
 
   socket.on("chat_message", ({ roomId, message }) => {
     const sender = getUserBySocket(socket.id);

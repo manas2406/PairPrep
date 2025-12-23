@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
+import Page from "../components/Page";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function Home() {
   const socketRef = useRef(null);
@@ -12,32 +15,35 @@ export default function Home() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
 
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/login";
+    }
+  }, []);
+
+
   /* ---------------- SOCKET SETUP ---------------- */
 
   useEffect(() => {
-    if (socketRef.current) return; // 👈 THIS is the key line
+    if (socketRef.current) return;
 
-    const userId = sessionStorage.getItem("userId");
-    if (!userId) return;
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
 
-    const socket = io("http://localhost:4000", {
-    query: { userId },
-  });
+    const socket = io(API_BASE, {
+      auth: {
+        token: sessionStorage.getItem("token"),
+      },
+    });
 
-  socketRef.current = socket;
-
-    if (!userId) {
-      console.warn("No userId found in sessionStorage");
-      return;
-    }
-    console.log(userId);
+    socketRef.current = socket;
 
     socket.on("connect", () => {
       console.log("Socket connected:", socket.id);
     });
 
     socket.on("chat_message", (msg) => {
-      console.log("📩 CHAT RECEIVED:", msg);
       setMessages((prev) => [...prev, msg]);
     });
 
@@ -61,8 +67,6 @@ export default function Home() {
     });
 
     socket.on("match_finished", ({ winner }) => {
-      console.log("🔥 SOCKET match_finished received. winner =", winner);
-      console.log("🔥 local userId =", sessionStorage.getItem("userId"));
       setResult(winner);
       setStatus("Finished");
     });
@@ -71,18 +75,17 @@ export default function Home() {
       console.log("Socket disconnected");
     });
 
-    fetch("http://localhost:4000/cf/fetch-solved", {
+    fetch(`${API_BASE}/cf/fetch-solved`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+      },
       body: JSON.stringify({
         userId: sessionStorage.getItem("userId"),
       }),
     });
 
-    return () => {
-      // socket.disconnect();
-      // socketRef.current = null;
-    };
   }, []);
 
   /* ---------------- MATCHMAKING ---------------- */
@@ -92,11 +95,12 @@ export default function Home() {
 
     setStatus("Searching...");
 
-    await fetch("http://localhost:4000/match/start", {
+    await fetch(`${API_BASE}/match/start`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-socket-id": socketRef.current.id,
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
       },
     });
   }
@@ -104,25 +108,22 @@ export default function Home() {
   /* ---------------- SUBMISSION ---------------- */
 
   async function submitSolution() {
-    // console.log("🟡 FRONTEND submit clicked");
-    // console.log("roomId:", roomId);
-    // console.log("userId:", sessionStorage.getItem("userId"));
-    // console.log("submissionId:", submissionId);
-
     setStatus("Verifying...");
     setError(null);
 
-    const res = await fetch("http://localhost:4000/submission/submit", {
+    const res = await fetch(`${API_BASE}/submission/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-socket-id": socketRef.current.id,
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
       },
       body: JSON.stringify({
         roomId,
         submissionId,
       }),
     });
+
     if (res.status === 409) {
       setError("Judging in progress. Please retry in a few seconds.");
       setStatus("Matched");
@@ -130,7 +131,6 @@ export default function Home() {
     }
 
     const data = await res.json();
-    console.log("🟢 FRONTEND HTTP response:", data);
 
     if (!res.ok) {
       setError(data.error);
@@ -157,148 +157,80 @@ export default function Home() {
   /* ---------------- UI ---------------- */
 
   return (
-
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <h1>PairPrep</h1>
-      <p>
-        Status: <strong>{status}</strong>
-      </p>
-
-      {!roomId && (
-        <button onClick={findMatch}>Find Match</button>
-      )}
-
-      {/* ---------- PROBLEM ---------- */}
-      {problem && (
-        <div
-          style={{
-            marginTop: "30px",
-            padding: "20px",
-            border: "1px solid #ddd",
-            borderRadius: "8px",
-            maxWidth: "600px",
-          }}
-        >
-          <h3>🧠 Problem Assigned</h3>
+    <Page>
+      {
+        <div style={{ padding: "40px", fontFamily: "Arial" }}>
+          <h1>PairPrep</h1>
 
           <p>
-            <strong>{problem.name}</strong>
+            Status: <strong>{status}</strong>
           </p>
 
-          <p>Difficulty Rating: {problem.rating}</p>
+          {!roomId && <button onClick={findMatch}>Find Match</button>}
 
-          <a href={problem.url} target="_blank" rel="noreferrer">
-            Open on Codeforces →
-          </a>
+          {problem && (
+            <div style={{ marginTop: "30px", padding: "20px", border: "1px solid #ddd" }}>
+              <h3>🧠 Problem Assigned</h3>
+              <p><strong>{problem.name}</strong></p>
+              <p>Difficulty Rating: {problem.rating}</p>
+              <a href={problem.url} target="_blank" rel="noreferrer">
+                Open on Codeforces →
+              </a>
+              <p>Room ID: {roomId}</p>
+            </div>
+          )}
 
-          <p style={{ marginTop: "10px", fontSize: "14px" }}>
-            Room ID: {roomId}
-          </p>
+          {problem && !result && (
+            <div style={{ marginTop: "20px" }}>
+              <input
+                type="text"
+                placeholder="Enter Codeforces submission ID"
+                value={submissionId}
+                onChange={(e) => setSubmissionId(e.target.value)}
+              />
+              <button onClick={submitSolution}>Submit</button>
+            </div>
+          )}
+
+          {result && (
+            <h2>
+              {result === sessionStorage.getItem("userId")
+                ? "🏆 You won!"
+                : "😞 You lost"}
+            </h2>
+          )}
+
+          {error && <p style={{ color: "red" }}>{error}</p>}
+
+          {roomId && (
+            <div style={{ marginTop: "30px" }}>
+              <h3>💬 Room Chat</h3>
+              {messages.map((m, i) => (
+                <p key={i}><strong>{m.userId}:</strong> {m.message}</p>
+              ))}
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+              />
+              <button
+                onClick={() => {
+                  socketRef.current.emit("chat_message", {
+                    roomId,
+                    message: chatInput,
+                  });
+                  setChatInput("");
+                }}
+              >
+                Send
+              </button>
+            </div>
+          )}
+
+          {roomId && status === "Finished" && (
+            <button onClick={leaveRoom}>Leave Room</button>
+          )}
         </div>
-      )}
-
-      {/* ---------- SUBMISSION ---------- */}
-      {problem && !result && (
-        <div style={{ marginTop: "20px" }}>
-          <input
-            type="text"
-            placeholder="Enter Codeforces submission ID"
-            value={submissionId}
-            onChange={(e) => setSubmissionId(e.target.value)}
-            style={{ width: "300px", padding: "8px" }}
-          />
-
-          <button onClick={submitSolution} style={{ marginLeft: "10px" }}>
-            Submit
-          </button>
-        </div>
-      )}
-
-      {/* ---------- RESULT ---------- */}
-      {result && (
-        <div style={{ marginTop: "30px" }}>
-          <h2>
-            {result === sessionStorage.getItem("userId")
-              ? "🏆 You won!"
-              : "😞 You lost"}
-          </h2>
-        </div>
-      )}
-
-      {/* ---------- ERROR ---------- */}
-      {error && (
-        <p style={{ color: "red", marginTop: "10px" }}>
-          Error: {error}
-        </p>
-      )}
-
-      {/* ---------- CHAT ---------- */}
-      {roomId && (
-        <div
-          style={{
-            marginTop: "30px",
-            padding: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            maxWidth: "600px",
-          }}
-        >
-          <h3>💬 Room Chat</h3>
-
-          <div
-            style={{
-              height: "200px",
-              overflowY: "auto",
-              border: "1px solid #eee",
-              padding: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            {messages.map((m, idx) => (
-              <p key={idx}>
-                <strong>{m.userId}:</strong> {m.message}
-              </p>
-            ))}
-          </div>
-
-          <input
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Type message..."
-            style={{ width: "75%", padding: "6px" }}
-          />
-
-          <button
-            onClick={() => {
-              socketRef.current.emit("chat_message", {
-                roomId,
-                message: chatInput,
-              });
-              setChatInput("");
-            }}
-            style={{ marginLeft: "10px" }}
-          >
-            Send
-          </button>
-        </div>
-      )}
-
-
-      {roomId && status === "Finished" && (
-        <button
-          onClick={leaveRoom}
-          style={{
-            marginTop: "20px",
-            padding: "8px 16px",
-            background: "#f44336",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-          }}
-        >
-          Leave Room
-        </button>
-      )}
-    </div>
+      }
+    </Page>
   );
 }
