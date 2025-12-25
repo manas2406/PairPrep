@@ -9,6 +9,10 @@ const QUEUE_KEY = "pairprep:queue";
 async function startMatch(req, res) {
   const socketId = req.headers["x-socket-id"];
   const io = req.app.get("io");
+  const { ratingRange } = req.body || {};
+  const [minRating, maxRating] = ratingRange
+    ? ratingRange.split("-").map(Number)
+    : [800, 1200];
 
   if (!socketId) {
     return res.status(400).json({ error: "Missing socket ID" });
@@ -56,7 +60,7 @@ async function startMatch(req, res) {
       ...userB.solvedProblems,
     ]);
 
-    const problem = selectProblem(800, 1200, excludedProblems);
+    const problem = selectProblem(minRating, maxRating, excludedProblems);
 
     if (!problem) {
       await redis.lpush(QUEUE_KEY, opponentSocket);
@@ -64,8 +68,9 @@ async function startMatch(req, res) {
     }
 
     const roomId = `room_${Date.now()}`;
+    const startTime = Date.now();
 
-    createRoom(roomId, problem.id, [userA.username, userB.username]);
+    createRoom(roomId, problem.id, [userA, userB], startTime);
 
     io.to(socketId).emit("match_found", { roomId, problem });
     io.to(opponentSocket).emit("match_found", { roomId, problem });

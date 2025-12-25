@@ -9,6 +9,7 @@ const { createUser } = require("./store/users");
 const connectDB = require("./db");
 const jwt = require("jsonwebtoken");
 const { getUser, setSolvedProblems } = require("./store/users");
+const authRoutes = require("./routes/auth.routes");
 const { fetchSolvedProblems } = require("./utils/codeforces");
 const { getUserBySocket } = require("./store/sockets");
 const submissionRoutes = require("./routes/submission.routes");
@@ -20,6 +21,7 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 app.use("/submission", authMiddleware, submissionRoutes);
+app.use("/auth", authRoutes);
 
 const io = new Server(server, {
   cors: {

@@ -162,3 +162,26 @@
 - Improved status visibility with visual indicators
 - Polished problem, submission, result, and chat sections
 - Enhanced room experience with clear structure and flow
+
+### Phase 8.7 – Dashboard & User Statistics
+
+- Extended user schema to track match statistics
+- Persisted match outcomes on match completion
+- Exposed aggregated user stats via authenticated API
+- Updated dashboard to display real-time user performance data
+
+### Phase 8.8 – Difficulty-Aware Matchmaking
+
+- Added user-controlled problem difficulty selection
+- Propagated rating range through matchmaking API
+- Integrated rating filters into problem selection logic
+- Improved match personalization without affecting queue fairness
+
+### Phase 8.9 – Match Timer & History
+
+- Added server-authoritative match timing
+- Persisted match history with duration and outcome
+- Implemented live in-room timer
+- Displayed detailed match history on dashboard
+- Enabled performance tracking across sessions
+

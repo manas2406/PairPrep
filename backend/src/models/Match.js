@@ -1,30 +1,23 @@
 const mongoose = require("mongoose");
 
-const matchSchema = new mongoose.Schema(
-  {
-    roomId: {
-      type: String,
-      required: true,
-    },
+const matchSchema = new mongoose.Schema({
+  roomId: String,
 
-    participants: {
-      type: [String],
-      required: true,
-    },
+  players: [String], // [u1, u2]
 
-    problemId: {
-      type: String,
-      required: true,
-    },
+  winner: String,
+  loser: String,
 
-    winner: {
-      type: String,
-      required: true,
-    },
+  problem: {
+    id: String,
+    name: String,
+    rating: Number,
+    url: String,
   },
-  {
-    timestamps: true,
-  }
-);
+
+  startedAt: Date,
+  endedAt: Date,
+  durationSeconds: Number,
+});
 
 module.exports = mongoose.model("Match", matchSchema);

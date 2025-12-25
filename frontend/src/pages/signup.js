@@ -68,7 +68,7 @@ export default function Signup() {
                     {error && <p style={{ color: "red" }}>{error}</p>}
 
                     <p style={{ marginTop: "20px" }}>
-                        Already have an account? <Link href="/signup">Login</Link>
+                        Already have an account? <Link href="/login">Login</Link>
                     </p>
                 </div>
             }
