@@ -72,6 +72,7 @@
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.27",
     "babel-plugin-react-compiler": "1.0.0",
+    "baseline-browser-mapping": "^2.10.0",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.0.10",
     "eslint-plugin-react-hooks": "^7.0.1",

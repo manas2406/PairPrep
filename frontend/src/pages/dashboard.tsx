@@ -15,6 +15,13 @@ import {
     User,
     LogOut
 } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -72,6 +79,7 @@ const Dashboard = () => {
     const router = useRouter();
     const [history, setHistory] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
+    const [targetRating, setTargetRating] = useState("1000");
 
     useEffect(() => {
         const token = sessionStorage.getItem("token");
@@ -121,20 +129,32 @@ const Dashboard = () => {
                     <p className="text-muted-foreground">Codeforces Handle: {user.cfHandle} | Ready for your next battle?</p>
                 </motion.div>
 
-                {/* Find Match Button */}
+                {/* Matchmaking Controls */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="mb-8"
+                    className="mb-8 flex flex-wrap items-center gap-4 bg-card/30 p-4 rounded-xl border border-border/50"
                 >
-                    <Link href="/">
-                        <Button variant="hero" size="xl" className="group">
-                            <Play className="h-5 w-5 mr-2" />
-                            Find Match
-                            <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                        </Button>
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Target Difficulty:</span>
+                        <Select value={targetRating} onValueChange={setTargetRating}>
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="Rating" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600].map(rating => (
+                                    <SelectItem key={rating} value={rating.toString()}>{rating}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <Button variant="hero" size="xl" className="group" onClick={() => router.push(`/?action=find_match&rating=${targetRating}`)}>
+                        <Play className="h-5 w-5 mr-2" />
+                        Find Match
+                        <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    </Button>
                 </motion.div>
 
                 {/* Stats Grid */}
@@ -264,8 +284,8 @@ const Dashboard = () => {
                                                 </td>
                                                 <td className="p-4">
                                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium uppercase tracking-wider ${isWinner
-                                                            ? "bg-accent/10 text-accent"
-                                                            : "bg-destructive/10 text-destructive"
+                                                        ? "bg-accent/10 text-accent"
+                                                        : "bg-destructive/10 text-destructive"
                                                         }`}>
                                                         {isWinner ? <Trophy className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                                                         {isWinner ? "Win" : "Loss"}

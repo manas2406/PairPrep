@@ -17,12 +17,26 @@ async function submitLink(req, res) {
         return res.status(401).json({ error: "Invalid socket" });
     }
 
+    console.log(`[submitLink] Verify socket: ${socketId} resolved to userId: ${userId}`);
+
     const room = getRoom(roomId);
-    if (!room || room.finished) {
+    if (!room) {
         return res.status(400).json({ error: "Invalid room" });
     }
 
-    if (!room.participants.includes(userId)) {
+    if (room.finished) {
+        return res.status(200).json({ message: "Match already finished", winner: room.winner });
+    }
+
+    console.log(`[submitLink] Room participants:`, room.participants, `userId:`, userId);
+
+    // Check participant validity
+    const isParticipant = room.participants.some(p => {
+        // Handle case where p might be an object instead of string
+        return (typeof p === 'object' && p.username === userId) || p === userId;
+    });
+
+    if (!isParticipant) {
         return res.status(403).json({ error: "Not a participant" });
     }
 
@@ -58,40 +72,44 @@ async function submitLink(req, res) {
 
         // Finish room
         finishRoom(roomId, userId);
-        const winner = await User.findOne({ username: userId });
-        const room = getRoom(roomId);
 
-        for (const participant of room.participants) {
-            const user = await User.findOne({ username: participant });
-            user.matchesPlayed += 1;
+        const roomData = getRoom(roomId);
 
-            if (participant === userId) {
-                user.matchesWon += 1;
-            } else {
-                user.matchesLost += 1;
+        for (const participant of roomData.participants) {
+            const userObj = await User.findOne({ username: participant });
+            if (userObj) {
+                userObj.matchesPlayed += 1;
+
+                if (participant === userId) {
+                    userObj.matchesWon += 1;
+                    if (!userObj.solvedProblems.includes(roomData.problemId)) {
+                        userObj.solvedProblems.push(roomData.problemId);
+                    }
+                } else {
+                    userObj.matchesLost += 1;
+                }
+
+                await userObj.save();
             }
-
-            await user.save();
         }
 
-
         // Persist match result
-        const Match = require("../models/Match");
+        const MatchModel = require("../models/Match");
 
         const endTime = Date.now();
         const durationSeconds = Math.floor(
-            (endTime - room.startedAt) / 1000
+            (endTime - roomData.startedAt) / 1000
         );
 
-        const loser = room.participants.find(u => u !== userId);
+        const loserUsername = roomData.participants.find(u => u !== userId) || "Unknown";
 
-        await Match.create({
+        await MatchModel.create({
             roomId,
-            players: room.participants,
-            winner,
-            loser,
-            problem: room.problem,
-            startedAt: new Date(room.startedAt),
+            players: roomData.participants,
+            winner: userId,
+            loser: loserUsername,
+            problem: roomData.problem,
+            startedAt: new Date(roomData.startedAt),
             endedAt: new Date(endTime),
             durationSeconds,
         });

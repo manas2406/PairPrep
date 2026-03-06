@@ -184,13 +184,22 @@ io.on("connection", (socket) => {
     console.log(`User ${userId} left room ${roomId}`);
   });
   socket.on("disconnect", () => {
-    unbindSocket(socket.id);
-    console.log(`User ${userId} disconnected`);
+    const userId = getUserBySocket(socket.id);
+    console.log(`Socket disconnected: ${socket.id}, User: ${userId}`);
+
+    if (userId) {
+      // Find if user is in any active room to clean it up.
+      // Easiest global check: emit user_left to all rooms this socket was previously joined to.
+      // Socket.io automatically leaves rooms on disconnect, so rooms Set is empty. But we can track via logic if needed.
+      // For now, ensuring we unbind the socket prevents ghost matchmaking queues.
+      unbindSocket(socket.id);
+    }
   });
 });
 
 connectDB();
 
-server.listen(4000, () => {
-  console.log("Backend + WebSocket running on port 4000");
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Backend + WebSocket running on port ${PORT}`);
 });

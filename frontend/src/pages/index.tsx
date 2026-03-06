@@ -75,6 +75,10 @@ export default function Home() {
 
         socket.on("connect", () => {
             console.log("Socket connected:", socket.id);
+            // Auto-start match if query param exists
+            if (router.query.action === "find_match") {
+                findMatch((router.query.rating as string) || "800");
+            }
         });
 
         socket.on("chat_message", (msg) => {
@@ -141,6 +145,11 @@ export default function Home() {
             },
         });
 
+        return () => {
+            if (socketRef.current?.timer) clearInterval(socketRef.current.timer);
+            socket.disconnect();
+            socketRef.current = null;
+        };
     }, [currentUser, toast]);
 
     // Auto-scroll chat
@@ -150,7 +159,7 @@ export default function Home() {
 
 
     /* ---------------- MATCHMAKING ---------------- */
-    async function findMatch(ratingRange = "800-1000") {
+    async function findMatch(rating = "800") {
         const token = sessionStorage.getItem("token");
         if (!token) {
             router.push("/login"); // enforce login on find match
@@ -158,16 +167,28 @@ export default function Home() {
         }
         if (!socketRef.current) return;
 
+        console.log("Starting match search with Socket ID:", socketRef.current.id);
         setStatus("Searching...");
-        await fetch(`${API_BASE}/match/start`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-                "x-socket-id": socketRef.current.id,
-            },
-            body: JSON.stringify({ ratingRange }),
-        });
+        try {
+            const res = await fetch(`${API_BASE}/match/start`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                    "x-socket-id": socketRef.current.id,
+                },
+                body: JSON.stringify({ rating }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                toast({ title: "Matchmaking Failed", description: err.error || "Unknown error", variant: "destructive" });
+                setStatus("Idle");
+            }
+        } catch (err) {
+            toast({ title: "Matchmaking Error", description: "Could not connect to server", variant: "destructive" });
+            setStatus("Idle");
+        }
     }
 
     /* ---------------- SUBMISSION ---------------- */
@@ -220,7 +241,7 @@ export default function Home() {
         setSubmissionId("");
         setResult(null);
         setError(null);
-        setStatus("Idle");
+        router.push("/dashboard");
     }
 
     /* ---------------- UTILS ---------------- */
@@ -285,7 +306,7 @@ export default function Home() {
                         <div className="h-16 w-16 mb-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
                         <h2 className="text-2xl font-bold font-display">Finding opponent...</h2>
                         <p className="text-muted-foreground mt-2">Connecting you to a player with a similar rating.</p>
-                        <Button variant="outline" className="mt-6" onClick={() => setStatus("Idle")}>Cancel Search</Button>
+                        <Button variant="outline" className="mt-6" onClick={() => router.push("/dashboard")}>Cancel Search</Button>
                     </div>
                 )}
 
