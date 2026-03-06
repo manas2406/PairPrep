@@ -185,3 +185,12 @@
 - Displayed detailed match history on dashboard
 - Enabled performance tracking across sessions
 
+### Phase 9.1 – Matchmaking & Submission Reliability Fixes
+
+- Resolved severe WebSocket tearing by decoupling Socket.IO hook from asynchronous user state
+- Fixed Matchmaking queue collisions by splitting the Redis queue into exact rating-specific queues (e.g., `pairprep:queue:800`)
+- Fixed 500 Internal Server error during Codeforces submission verification by correcting Date and Problem Object schemas before MongoDB Match creation
+- Added explicit HTTP `200 OK` responses and `match_finished` socket broadcasts to resolve infinite verification UI spinning
+- Fixed dashboard `solvedProblems` counter to correctly track uniquely solved problems
+- Handled edge cases with disconnected sockets during matchmaking to prevent ghost connections
+- Enhanced UX by enforcing proper client-side redirects to `/dashboard` on "Leave Room" and "Cancel Search"
