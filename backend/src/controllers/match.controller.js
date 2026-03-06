@@ -79,7 +79,7 @@ async function startMatch(req, res) {
     const roomId = `room_${Date.now()}`;
     const startTime = Date.now();
 
-    createRoom(roomId, problem.id, [userA.username, userB.username], startTime);
+    createRoom(roomId, problem, [userA.username, userB.username], startTime);
 
     io.to(socketId).emit("match_found", { roomId, problem });
     io.to(opponentSocket).emit("match_found", { roomId, problem });

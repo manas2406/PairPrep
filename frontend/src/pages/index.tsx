@@ -150,7 +150,7 @@ export default function Home() {
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [currentUser, toast]);
+    }, [toast, router.query.action, router.query.rating]);
 
     // Auto-scroll chat
     useEffect(() => {

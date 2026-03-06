@@ -12,11 +12,13 @@ Room shape:
 }
 */
 
-function createRoom(roomId, problemId, participants) {
+function createRoom(roomId, problem, participants, startedAt) {
   rooms.set(roomId, {
     roomId,
-    problemId,
+    problem,
+    problemId: problem.id,
     participants,
+    startedAt,
     submissions: {},
     winner: null,
     finished: false,

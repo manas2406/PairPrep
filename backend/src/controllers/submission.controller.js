@@ -82,6 +82,7 @@ async function submitLink(req, res) {
 
                 if (participant === userId) {
                     userObj.matchesWon += 1;
+                    userObj.solvedProblems = userObj.solvedProblems || [];
                     if (!userObj.solvedProblems.includes(roomData.problemId)) {
                         userObj.solvedProblems.push(roomData.problemId);
                     }
@@ -114,8 +115,18 @@ async function submitLink(req, res) {
             durationSeconds,
         });
 
+        // Tell both players the match is over!
+        const io = req.app.get("io");
+        io.to(roomId).emit("match_finished", { winner: userId });
+
+        // Resolve the "Verifying..." HTTP spinner
+        return res.status(200).json({ message: "Verification successful!", winner: userId });
+
     } catch (err) {
-        console.error(err);
+        console.error("===== SUBMISSION 500 ERROR =====");
+        console.error("Message:", err.message);
+        console.error("Stack:", err.stack);
+        console.error("Full Error Obj:", err);
         return res.status(500).json({ error: "Submission verification failed" });
     }
 }
