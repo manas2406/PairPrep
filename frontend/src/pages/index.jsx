@@ -111,6 +111,27 @@ export default function Home() {
             socket.emit("join_room", { roomId: data.roomId });
         });
 
+        socket.on("match_reconnect", (data) => {
+            setRoomId(data.roomId);
+            setProblem(data.problem);
+            setStatus("Matched");
+            setMessages([]);
+            setResult(null);
+            setSubmissionId("");
+            setError(null);
+            setSeconds(0);
+
+            toast({
+                title: "Match Reconnected!",
+                description: `Resuming problem: ${data.problem.name}`,
+            });
+
+            const timer = setInterval(() => {
+                setSeconds(prev => prev + 1);
+            }, 1000);
+            socketRef.current.timer = timer;
+        });
+
         socket.on("user_left", ({ userId }) => {
             setMessages((prev) => [
                 ...prev,

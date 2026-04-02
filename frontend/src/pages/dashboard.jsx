@@ -64,6 +64,7 @@ const Dashboard = () => {
     const [history, setHistory] = useState([]);
     const [user, setUser] = useState(null);
     const [targetRating, setTargetRating] = useState("1000");
+    const [hasActiveMatch, setHasActiveMatch] = useState(false);
 
     const fetchUserData = () => {
         const token = sessionStorage.getItem("token");
@@ -85,6 +86,14 @@ const Dashboard = () => {
         })
             .then((res) => res.json())
             .then(setUser);
+
+        fetch(`${API_BASE}/match/current`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                setHasActiveMatch(data.status === "active");
+            });
     };
 
     useEffect(() => {
@@ -141,11 +150,19 @@ const Dashboard = () => {
                         </Select>
                     </div>
 
-                    <Button variant="hero" size="xl" className="group" onClick={() => router.push(`/?action=find_match&rating=${targetRating}`)}>
-                        <Play className="h-5 w-5 mr-2" />
-                        Find Match
-                        <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                    </Button>
+                    {hasActiveMatch ? (
+                        <Button variant="hero" size="xl" className="group bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-400" onClick={() => router.push(`/?action=reconnect`)}>
+                            <Play className="h-5 w-5 mr-2" />
+                            Reconnect to Match
+                            <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                        </Button>
+                    ) : (
+                        <Button variant="hero" size="xl" className="group" onClick={() => router.push(`/?action=find_match&rating=${targetRating}`)}>
+                            <Play className="h-5 w-5 mr-2" />
+                            Find Match
+                            <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                        </Button>
+                    )}
 
                     <Button variant="outline" size="xl" onClick={() => router.push("/practice")} className="ml-auto">
                         <Target className="h-5 w-5 mr-2" />
