@@ -160,7 +160,7 @@ io.on("connection", (socket) => {
     console.log("JOIN ROOM", roomId, socket.id);
   });
 
-  socket.on("leave_room", ({ roomId }) => {
+  socket.on("leave_room", async ({ roomId }) => {
     const userId = getUserBySocket(socket.id);
 
     socket.leave(roomId);
@@ -170,6 +170,20 @@ io.on("connection", (socket) => {
     });
 
     console.log(`User ${userId} left room ${roomId}`);
+
+    try {
+        const room = getRoom(roomId);
+        if (room && !room.finished) {
+           const { finishRoom } = require("./store/rooms");
+           finishRoom(roomId, "FORFEIT");
+           const winnerUserId = room.participants.find(p => p !== userId);
+           if (winnerUserId) {
+              const { applyMatchResult } = require("./controllers/submission.controller");
+              await applyMatchResult(room, winnerUserId, io, roomId);
+              console.log(`User ${userId} forfeited match to ${winnerUserId}`);
+           }
+        }
+    } catch(e) { console.error("Forfeit Error:", e); }
   });
   socket.on("disconnect", () => {
     const userId = getUserBySocket(socket.id);
@@ -182,10 +196,22 @@ io.on("connection", (socket) => {
       // Cleanup ghost socket from ALL rate queues aggressively
       (async () => {
          try {
-            // It's safer to remove from common queues. 
-            // The exact rating isn't in scope, but we can do a pattern search or just trust the new loop discard in match_controller
-            // Actually `startMatch`'s loop handles dead sockets cleanly now, so we technically don't need a heavy duty scan.
-         } catch(e) {}
+            const activeRoomId = await redis.get(`activeMatch:${userId}`);
+            if (activeRoomId) {
+               const room = getRoom(activeRoomId);
+               if (room && !room.finished) {
+                   const { finishRoom } = require("./store/rooms");
+                   finishRoom(activeRoomId, "FORFEIT");
+                   const winnerUserId = room.participants.find(p => p !== userId);
+                   if (winnerUserId) {
+                      const { applyMatchResult } = require("./controllers/submission.controller");
+                      // Broadcast result first so the opponent sees the win
+                      await applyMatchResult(room, winnerUserId, io, activeRoomId);
+                      console.log(`User ${userId} disconnected. Forfeited match to ${winnerUserId}`);
+                   }
+               }
+            }
+         } catch(e) { console.error("Disconnect Forfeit Error:", e); }
       })();
     }
   });

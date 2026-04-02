@@ -189,4 +189,4 @@ async function submitLink(req, res) {
     }
 }
 
-module.exports = { submitLink };
+module.exports = { submitLink, applyMatchResult };
