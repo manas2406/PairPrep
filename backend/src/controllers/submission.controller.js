@@ -95,7 +95,6 @@ async function submitLink(req, res) {
         }
 
         // Persist match result
-        const MatchModel = require("../models/Match");
 
         const endTime = Date.now();
         const durationSeconds = Math.floor(
@@ -104,7 +103,7 @@ async function submitLink(req, res) {
 
         const loserUsername = roomData.participants.find(u => u !== userId) || "Unknown";
 
-        await MatchModel.create({
+        await Match.create({
             roomId,
             players: roomData.participants,
             winner: userId,

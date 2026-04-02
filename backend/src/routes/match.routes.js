@@ -15,6 +15,6 @@ router.get("/history", auth, async (req, res) => {
     res.json(matches);
 });
 
-router.post("/start", startMatch);
+router.post("/start", auth, startMatch);
 
 module.exports = router;

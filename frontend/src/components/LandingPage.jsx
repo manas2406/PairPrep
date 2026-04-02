@@ -8,11 +8,6 @@ const FeatureCard = ({
   title,
   description,
   delay
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  delay: number;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -37,11 +32,6 @@ const HowItWorksStep = ({
   title,
   description,
   delay,
-}: {
-  step: number;
-  title: string;
-  description: string;
-  delay: number;
 }) => (
   <motion.div
     initial={{ opacity: 0, x: -20 }}

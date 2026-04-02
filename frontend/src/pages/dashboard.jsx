@@ -42,13 +42,6 @@ const StatCard = ({
     subValue,
     trend,
     delay
-}: {
-    icon: React.ElementType;
-    label: string;
-    value: string | number;
-    subValue?: string;
-    trend?: "up" | "down";
-    delay: number;
 }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -77,8 +70,8 @@ const StatCard = ({
 
 const Dashboard = () => {
     const router = useRouter();
-    const [history, setHistory] = useState<any[]>([]);
-    const [user, setUser] = useState<any>(null);
+    const [history, setHistory] = useState([]);
+    const [user, setUser] = useState(null);
     const [targetRating, setTargetRating] = useState("1000");
 
     useEffect(() => {

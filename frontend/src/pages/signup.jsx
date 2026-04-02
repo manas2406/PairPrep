@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Swords, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check } from "lucide-react";
+import { Swords, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, Code } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -18,6 +18,19 @@ const SignupPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
+    // Auth flow protection
+    const token = router.query.token;
+    const prefilledHandle = router.query.handle;
+    
+    useEffect(() => {
+        if (router.isReady) {
+            if (!token) {
+                router.push("/verify");
+            } else if (prefilledHandle) {
+                setCfHandle(prefilledHandle);
+            }
+        }
+    }, [router.isReady, token, prefilledHandle]);
 
     const passwordRequirements = [
         { text: "At least 8 characters", met: password.length >= 8 },
@@ -25,7 +38,7 @@ const SignupPage = () => {
         { text: "Contains uppercase letter", met: /[A-Z]/.test(password) },
     ];
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!passwordRequirements.every(req => req.met)) {
@@ -43,7 +56,7 @@ const SignupPage = () => {
             const res = await fetch(`${API_BASE}/auth/signup`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: username, cfHandle, password }),
+                body: JSON.stringify({ userId: username, cfHandle, password, preVerifiedToken: token }),
             });
 
             const data = await res.json();
@@ -170,14 +183,15 @@ const SignupPage = () => {
                                 Codeforces Handle
                             </Label>
                             <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Code className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                                 <Input
                                     id="cfHandle"
                                     type="text"
                                     placeholder="e.g. tourist"
                                     value={cfHandle}
                                     onChange={(e) => setCfHandle(e.target.value)}
-                                    className="pl-12"
+                                    className="pl-12 bg-muted opacity-80"
+                                    disabled
                                     required
                                 />
                             </div>

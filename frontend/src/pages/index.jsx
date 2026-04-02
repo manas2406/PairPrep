@@ -25,21 +25,21 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function Home() {
     const router = useRouter();
-    const socketRef = useRef<any>(null);
+    const socketRef = useRef(null);
 
     // App states
-    const [currentUser, setCurrentUser] = useState<string | null>(null);
+    const [currentUser, setCurrentUser] = useState(null);
     const [status, setStatus] = useState("Idle"); // Idle | Searching... | Matched | Finished | Verifying...
-    const [roomId, setRoomId] = useState<string | null>(null);
-    const [problem, setProblem] = useState<any>(null);
+    const [roomId, setRoomId] = useState(null);
+    const [problem, setProblem] = useState(null);
     const [submissionId, setSubmissionId] = useState("");
-    const [result, setResult] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState(null);
 
     // Chat
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState("");
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatEndRef = useRef(null);
 
     // Timer
     const [seconds, setSeconds] = useState(0);
@@ -77,7 +77,7 @@ export default function Home() {
             console.log("Socket connected:", socket.id);
             // Auto-start match if query param exists
             if (router.query.action === "find_match") {
-                findMatch((router.query.rating as string) || "800");
+                findMatch(router.query.rating || "800");
             }
         });
 
@@ -245,7 +245,7 @@ export default function Home() {
     }
 
     /* ---------------- UTILS ---------------- */
-    const formatTime = (totalSeconds: number) => {
+    const formatTime = (totalSeconds) => {
         const mins = Math.floor(totalSeconds / 60);
         const secs = totalSeconds % 60;
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
@@ -258,7 +258,7 @@ export default function Home() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    const handleSendMessage = (e) => {
         e.preventDefault();
         if (!chatInput.trim() || !socketRef.current) return;
 
