@@ -25,16 +25,7 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const ratingBreakdown = [
-    { rating: "800-1000", wins: 12, losses: 2, total: 14 },
-    { rating: "1000-1200", wins: 18, losses: 5, total: 23 },
-    { rating: "1200-1400", wins: 25, losses: 12, total: 37 },
-    { rating: "1400-1600", wins: 22, losses: 18, total: 40 },
-    { rating: "1600-1800", wins: 15, losses: 14, total: 29 },
-    { rating: "1800+", wins: 6, losses: 7, total: 13 },
-];
-
-
+// Removed old fake ratingBreakdown
 const StatCard = ({
     icon: Icon,
     label,
@@ -74,7 +65,7 @@ const Dashboard = () => {
     const [user, setUser] = useState(null);
     const [targetRating, setTargetRating] = useState("1000");
 
-    useEffect(() => {
+    const fetchUserData = () => {
         const token = sessionStorage.getItem("token");
         if (!token) {
             router.push("/login");
@@ -82,9 +73,7 @@ const Dashboard = () => {
         }
 
         fetch(`${API_BASE}/match/history`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
         })
             .then(res => res.json())
             .then(data => {
@@ -92,12 +81,21 @@ const Dashboard = () => {
             });
 
         fetch(`${API_BASE}/auth/me`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
         })
             .then((res) => res.json())
             .then(setUser);
+    };
+
+    useEffect(() => {
+        fetchUserData();
+
+        // Auto-refresh when tab regains focus (e.g. returning from a match)
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") fetchUserData();
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => document.removeEventListener("visibilitychange", handleVisibility);
     }, [router]);
 
     if (!user) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
@@ -148,10 +146,23 @@ const Dashboard = () => {
                         Find Match
                         <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                     </Button>
+
+                    <Button variant="outline" size="xl" onClick={() => router.push("/practice")} className="ml-auto">
+                        <Target className="h-5 w-5 mr-2" />
+                        Warm Up in Practice Mode
+                    </Button>
                 </motion.div>
 
                 {/* Stats Grid */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+                    <StatCard
+                        icon={Swords}
+                        label="Current Rating"
+                        value={user.rating || 1200}
+                        subValue={`Peak: ${user.peakRating || 1200}`}
+                        trend="up"
+                        delay={0.05}
+                    />
                     <StatCard
                         icon={Target}
                         label="Total Matches"
@@ -163,64 +174,20 @@ const Dashboard = () => {
                         label="Wins / Losses"
                         value={`${user.matchesWon || 0} / ${user.matchesLost || 0}`}
                         subValue={`${winRate}% win rate`}
-                        trend="up"
+                        trend={winRate >= 50 ? "up" : undefined}
                         delay={0.15}
                     />
                     <StatCard
                         icon={TrendingUp}
                         label="Problems Solved"
                         value={user.solvedCount || 0}
-                        subValue={`Total CF Problems`}
-                        trend="up"
+                        subValue={`Practice: ${user.practiceSolved || 0}`}
+                        trend={undefined}
                         delay={0.2}
                     />
                 </div>
 
-                {/* Rating Breakdown */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mb-8 hidden" // Hiding this since real PairPrep doesn't track rating yet
-                >
-                    <h2 className="font-display text-xl font-semibold mb-4">Performance by Rating</h2>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {ratingBreakdown.map((item, index) => {
-                            const itemWinRate = item.total > 0 ? Math.round((item.wins / item.total) * 100) : 0;
-                            return (
-                                <motion.div
-                                    key={item.rating}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.35 + index * 0.05 }}
-                                    className="rounded-lg border border-border/50 bg-card/30 p-4"
-                                >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="font-mono text-sm font-medium text-primary">{item.rating}</span>
-                                        <span className="text-xs text-muted-foreground">{item.total} matches</span>
-                                    </div>
-                                    <div className="flex items-center gap-4 mb-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="h-2 w-2 rounded-full bg-accent" />
-                                            <span className="text-sm">{item.wins}W</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="h-2 w-2 rounded-full bg-destructive" />
-                                            <span className="text-sm">{item.losses}L</span>
-                                        </div>
-                                    </div>
-                                    <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-primary to-accent transition-all"
-                                            style={{ width: `${itemWinRate}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-2">{itemWinRate}% win rate</p>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
-                </motion.div>
+                {/* Removed hidden rating breakdown */}
 
                 {/* Match History */}
                 <motion.div

@@ -27,10 +27,13 @@ router.get("/me", authMiddleware, (req, res) => {
   res.json({
     username: user.username,
     cfHandle: user.cfHandle,
+    rating: user.rating,
+    peakRating: user.peakRating,
     matchesPlayed: user.matchesPlayed,
     matchesWon: user.matchesWon,
     matchesLost: user.matchesLost,
     solvedCount: user.solvedProblems.length,
+    practiceSolved: user.practiceSolved,
   });
 });
 
@@ -121,6 +124,12 @@ router.post("/signup", async (req, res) => {
     const existingUser = await User.findOne({ username: userId });
     if (existingUser) {
       return res.status(409).json({ error: "User already exists" });
+    }
+    
+    // Ensure 1 CF Handle per User
+    const existingHandle = await User.findOne({ cfHandle });
+    if (existingHandle) {
+      return res.status(409).json({ error: "This Codeforces handle is already linked to another PairPrep account" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

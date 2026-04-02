@@ -26,6 +26,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function Home() {
     const router = useRouter();
     const socketRef = useRef(null);
+    const currentUserRef = useRef(null);
 
     // App states
     const [currentUser, setCurrentUser] = useState(null);
@@ -34,6 +35,7 @@ export default function Home() {
     const [problem, setProblem] = useState(null);
     const [submissionId, setSubmissionId] = useState("");
     const [result, setResult] = useState(null);
+    const [ratingChange, setRatingChange] = useState(null);
     const [error, setError] = useState(null);
 
     // Chat
@@ -48,14 +50,15 @@ export default function Home() {
 
     useEffect(() => {
         const token = sessionStorage.getItem("token");
-        // We do NOT forcefully redirect to login here so the Landing Page can be seen
-        // But we fetch the current user if a token exists
         if (token) {
             fetch(`${API_BASE}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(res => res.json())
-                .then(data => setCurrentUser(data.username))
+                .then(data => {
+                    setCurrentUser(data.username);
+                    currentUserRef.current = data.username;
+                })
                 .catch(console.error);
         }
     }, []);
@@ -118,18 +121,29 @@ export default function Home() {
             }
         });
 
-        socket.on("match_finished", ({ winner }) => {
+        socket.on("match_finished", ({ winner, ratingChanges }) => {
+            const user = currentUserRef.current;
             setResult(winner);
             setStatus("Finished");
             if (socketRef.current?.timer) {
                 clearInterval(socketRef.current.timer);
             }
 
-            toast({
-                title: "Match Finished",
-                description: `Winner is: ${winner}`,
-                variant: winner === currentUser ? "default" : "destructive",
-            });
+            if (ratingChanges && user && ratingChanges[user]) {
+                setRatingChange(ratingChanges[user]);
+                const { delta, newRating } = ratingChanges[user];
+                toast({
+                    title: delta >= 0 ? `+${delta} Rating!` : `${delta} Rating`,
+                    description: `New rating: ${newRating}`,
+                    variant: delta >= 0 ? "default" : "destructive",
+                });
+            } else {
+                toast({
+                    title: "Match Finished",
+                    description: `Winner is: ${winner}`,
+                    variant: winner === user ? "default" : "destructive",
+                });
+            }
         });
 
         socket.on("disconnect", () => {
@@ -317,11 +331,26 @@ export default function Home() {
 
                             {/* Winner overlay if finished */}
                             {result && (
-                                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-xl border border-primary/50 bg-primary/10 mb-6 text-center">
-                                    <h2 className="text-3xl font-bold font-display text-primary">
-                                        {result === currentUser ? "🏆 You won!" : "😞 You lost"}
+                                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="p-6 rounded-xl border border-primary/50 bg-card/50 backdrop-blur-sm mb-6">
+                                    <h2 className="text-3xl font-bold font-display text-center mb-4">
+                                        {result === currentUser ? "🏆 You Won!" : "😞 You Lost"}
                                     </h2>
-                                    <p className="mt-2 text-muted-foreground">Winner: {result}</p>
+                                    {ratingChange && (
+                                        <div className="flex items-center justify-center gap-6 mt-2">
+                                            <div className="text-center">
+                                                <p className="text-xs text-muted-foreground mb-1">Before</p>
+                                                <p className="font-mono text-2xl font-bold">{ratingChange.oldRating}</p>
+                                            </div>
+                                            <div className="text-2xl text-muted-foreground">→</div>
+                                            <div className="text-center">
+                                                <p className="text-xs text-muted-foreground mb-1">After</p>
+                                                <p className="font-mono text-2xl font-bold">{ratingChange.newRating}</p>
+                                            </div>
+                                            <div className={`text-center px-4 py-2 rounded-lg font-mono text-xl font-bold ${ratingChange.delta >= 0 ? 'bg-green-500/10 text-green-500 border border-green-500/30' : 'bg-red-500/10 text-red-500 border border-red-500/30'}`}>
+                                                {ratingChange.delta >= 0 ? `+${ratingChange.delta}` : ratingChange.delta}
+                                            </div>
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
 

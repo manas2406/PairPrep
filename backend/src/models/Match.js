@@ -14,10 +14,22 @@ const matchSchema = new mongoose.Schema({
     rating: Number,
     url: String,
   },
+  // --- RATING DELTAS (NEW) ---
+  ratingChanges: [{
+    username: String,
+    before:   Number,
+    after:    Number,
+    delta:    Number,
+  }],
 
   startedAt: Date,
   endedAt: Date,
   durationSeconds: Number,
+  
+  // 'completed' | 'abandoned' | 'timeout'
+  status: { type: String, default: "completed" },
 });
+
+matchSchema.index({ players: 1, startedAt: -1 });
 
 module.exports = mongoose.model("Match", matchSchema);

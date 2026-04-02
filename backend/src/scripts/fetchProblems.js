@@ -1,10 +1,17 @@
-const fs = require("fs");
+require("dotenv").config({ path: __dirname + "/../.env" });
+const express = require("express"); // not needed
 const axios = require("axios");
-const path = require("path");
+const mongoose = require("mongoose");
+const Problem = require("../models/Problem");
+
+if (!process.env.MONGO_URI) {
+    require("dotenv").config({ path: __dirname + "/../../.env" });
+}
 
 async function fetchProblems() {
     try {
-        console.log("Fetching problems from Codeforces API...");
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log("Connected to MongoDB. Fetching problems from Codeforces API...");
         const response = await axios.get("https://codeforces.com/api/problemset.problems");
         if (response.data.status !== "OK") {
             throw new Error("Codeforces API failed: " + response.data.comment);
@@ -18,33 +25,36 @@ async function fetchProblems() {
         targetRatings.forEach(r => problemsByRating[r] = []);
 
         // Iterate and collect
+        let count = 0;
         for (const p of problems) {
             if (p.rating && targetRatings.includes(p.rating)) {
-                if (problemsByRating[p.rating].length < 100) {
-                    // Make sure it's a standard problem (no weird tags or wild variations if desired, but we'll accept any valid id)
-                    problemsByRating[p.rating].push({
-                        id: `${p.contestId}${p.index}`,
-                        name: p.name,
-                        rating: p.rating,
-                        url: `https://codeforces.com/problemset/problem/${p.contestId}/${p.index}`
-                    });
+                if (problemsByRating[p.rating].length < 150) { // Bumped to 150 for more variety
+                    const problemId = `${p.contestId}${p.index}`;
+                    
+                    await Problem.findOneAndUpdate(
+                        { problemId },
+                        {
+                            problemId,
+                            name: p.name,
+                            rating: p.rating,
+                            url: `https://codeforces.com/problemset/problem/${p.contestId}/${p.index}`,
+                            tags: p.tags || [],
+                            contestId: p.contestId,
+                            index: p.index
+                        },
+                        { upsert: true, new: true }
+                    );
+                    problemsByRating[p.rating].push(problemId);
+                    count++;
                 }
             }
         }
 
-        // Flatten the dict into one master array
-        const finalProblemSet = [];
-        targetRatings.forEach(r => {
-            finalProblemSet.push(...problemsByRating[r]);
-            console.log(`Collected ${problemsByRating[r].length} problems for rating ${r}`);
-        });
-
-        const outputPath = path.join(__dirname, "../data/codeforces_problems.json");
-        fs.writeFileSync(outputPath, JSON.stringify(finalProblemSet, null, 2));
-
-        console.log(`Successfully wrote ${finalProblemSet.length} total problems to ${outputPath}`);
+        console.log(`Successfully upserted ${count} total problems to MongoDB.`);
+        process.exit(0);
     } catch (err) {
         console.error("Failed to fetch problems:", err.message);
+        process.exit(1);
     }
 }
 

@@ -5,13 +5,17 @@ const User = require("./models/User");
 const authMiddleware = require("./middleware/auth");
 const http = require("http");
 const { Server } = require("socket.io");
-const matchRoutes = require("./routes/match.routes");
 const connectDB = require("./db");
 const jwt = require("jsonwebtoken");
 const authRoutes = require("./routes/auth.routes");
-const { fetchSolvedProblems } = require("./utils/codeforces");
-const { getUserBySocket } = require("./store/sockets");
+const matchRoutes = require("./routes/match.routes");
 const submissionRoutes = require("./routes/submission.routes");
+const leaderboardRoutes = require("./routes/leaderboard.routes");
+const practiceRoutes = require("./routes/practice.routes");
+const { getUserBySocket } = require("./store/sockets");
+const { getRoom } = require("./store/rooms");
+const redis = require("./redis");
+const { fetchSolvedProblems } = require("./utils/codeforces");
 
 const app = express();
 const server = http.createServer(app);
@@ -20,8 +24,11 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:3000"
 }));
 app.use(express.json());
-app.use("/submission", authMiddleware, submissionRoutes);
 app.use("/auth", authRoutes);
+app.use("/match", authMiddleware, matchRoutes);
+app.use("/submission", authMiddleware, submissionRoutes);
+app.use("/leaderboard", leaderboardRoutes);
+app.use("/practice", practiceRoutes);
 
 const io = new Server(server, {
   cors: {
@@ -36,6 +43,24 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/stats", async (req, res) => {
+  try {
+    const Problem = require("./models/Problem");
+    const Match = require("./models/Match");
+    
+    // Efficient countDocuments overrides everything
+    const [players, battles, problems] = await Promise.all([
+      User.countDocuments(),
+      Match.countDocuments(),
+      Problem.countDocuments()
+    ]);
+
+    res.json({ players, battles, problems });
+  } catch(e) {
+    res.status(500).json({ error: "Stats error"});
+  }
+});
+
 
 app.post("/cf/fetch-solved", authMiddleware, async (req, res) => {
   const userId = req.user.username;
@@ -47,13 +72,17 @@ app.post("/cf/fetch-solved", authMiddleware, async (req, res) => {
     }
 
     const solved = await fetchSolvedProblems(user.cfHandle);
+    const solvedArray = Array.from(solved);
 
-    user.solvedProblems = Array.from(solved);
-    await user.save();
+    // Merge CF solved problems without overwriting match-related entries
+    await User.updateOne(
+      { username: userId },
+      { $addToSet: { solvedProblems: { $each: solvedArray }, attemptedProblems: { $each: solvedArray } } }
+    );
 
     return res.json({
       status: "ok",
-      solvedCount: user.solvedProblems.length,
+      solvedCount: solvedArray.length,
     });
   } catch (err) {
     console.error(err);
@@ -64,8 +93,7 @@ app.post("/cf/fetch-solved", authMiddleware, async (req, res) => {
 });
 
 
-app.use("/match", authMiddleware, matchRoutes);
-
+// Match routes are mounted above
 const {
   bindSocket,
   unbindSocket,
@@ -90,6 +118,29 @@ io.on("connection", (socket) => {
   bindSocket(socket.id, userId);
 
   console.log(`User ${userId} connected via socket ${socket.id}`);
+  
+  // Reconnection Handling
+  (async () => {
+    try {
+      const activeRoomId = await redis.get(`activeMatch:${userId}`);
+      if (activeRoomId) {
+        const room = getRoom(activeRoomId);
+        if (room && !room.finished) {
+          socket.join(activeRoomId);
+          socket.emit("match_reconnect", {
+             roomId: activeRoomId,
+             problem: room.problem
+          });
+          console.log(`User ${userId} reconnected to ${activeRoomId}`);
+        } else {
+          // Cleanup stale room state
+          await redis.del(`activeMatch:${userId}`);
+        }
+      }
+    } catch(err) {
+      console.error("Reconnection fetch error", err);
+    }
+  })();
 
   socket.on("chat_message", ({ roomId, message }) => {
     const sender = getUserBySocket(socket.id);
@@ -124,11 +175,17 @@ io.on("connection", (socket) => {
     console.log(`Socket disconnected: ${socket.id}, User: ${userId}`);
 
     if (userId) {
-      // Find if user is in any active room to clean it up.
-      // Easiest global check: emit user_left to all rooms this socket was previously joined to.
-      // Socket.io automatically leaves rooms on disconnect, so rooms Set is empty. But we can track via logic if needed.
-      // For now, ensuring we unbind the socket prevents ghost matchmaking queues.
+      // Free from local mapping
       unbindSocket(socket.id);
+      
+      // Cleanup ghost socket from ALL rate queues aggressively
+      (async () => {
+         try {
+            // It's safer to remove from common queues. 
+            // The exact rating isn't in scope, but we can do a pattern search or just trust the new loop discard in match_controller
+            // Actually `startMatch`'s loop handles dead sockets cleanly now, so we technically don't need a heavy duty scan.
+         } catch(e) {}
+      })();
     }
   });
 });

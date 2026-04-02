@@ -19,35 +19,49 @@ async function startMatch(req, res) {
 
   try {
     const currentUserId = getUserBySocket(socketId);
-    console.log(`[startMatch] Received request for socketId: ${socketId}, user: ${currentUserId}, rating: ${rating}`);
-    console.log(`[startMatch] Headers: ${JSON.stringify(req.headers)}`);
-
     if (!currentUserId) {
-      console.log(`[startMatch] Error: currentUserId is null for socket ${socketId}`);
       return res.status(400).json({ error: "Invalid socket" });
     }
 
-    // Try to get opponent from this specific rating queue
-    const opponentSocket = await redis.rpop(queueKey);
-    console.log(`[startMatch] Popped opponentSocket from queue ${queueKey}: ${opponentSocket}`);
+    // 1. Race condition lock (Ensure user can't spam /start)
+    const activeLock = await redis.setnx(`lock:match:${currentUserId}`, "1");
+    if (!activeLock) {
+        return res.status(429).json({ error: "Please wait before requesting again." });
+    }
+    await redis.expire(`lock:match:${currentUserId}`, 2); // 2 second lock
+
+    // Check if user is already in an active room
+    const currentRoom = await redis.get(`activeMatch:${currentUserId}`);
+    if (currentRoom) {
+        return res.status(400).json({ error: "You are already in an active match. Please reconnect." });
+    }
+
+    // Remove user explicitly from queue to prevent duplicates if they dropped out previously
+    await redis.lrem(queueKey, 0, socketId);
+
+    // 2. Loop to find valid opponent (Skipping dead sockets)
+    let opponentSocket = null;
+    let opponentUserId = null;
+    
+    while (true) {
+        opponentSocket = await redis.rpop(queueKey);
+        if (!opponentSocket) break; // queue is empty
+        
+        if (opponentSocket === socketId) continue; // skip self
+        
+        opponentUserId = getUserBySocket(opponentSocket);
+        if (opponentUserId) {
+            // make sure opponent isn't in an active match somehow
+            const oppRoom = await redis.get(`activeMatch:${opponentUserId}`);
+            if (oppRoom) {
+               continue;
+            }
+            break; // found valid opponent
+        }
+    }
 
     // No opponent → wait
-    if (!opponentSocket) {
-      console.log(`[startMatch] No opponent found. Pushing ${socketId} to queue ${queueKey} and waiting.`);
-      await redis.lpush(queueKey, socketId);
-      return res.json({ status: "waiting" });
-    }
-
-    // Prevent self-match
-    if (opponentSocket === socketId) {
-      console.log(`[startMatch] opponentSocket matches socketId. Pushing back to queue and waiting.`);
-      await redis.lpush(queueKey, socketId);
-      return res.json({ status: "waiting" });
-    }
-
-    const opponentUserId = getUserBySocket(opponentSocket);
-    if (!opponentUserId) {
-      console.log(`[startMatch] Opponent socket ${opponentSocket} is invalid. Putting ${socketId} back in queue.`);
+    if (!opponentSocket || !opponentUserId) {
       await redis.lpush(queueKey, socketId);
       return res.json({ status: "waiting" });
     }
@@ -62,24 +76,36 @@ async function startMatch(req, res) {
       return res.status(400).json({ error: "User not found in DB" });
     }
 
-    // Combine solved problems
+    // Combine all attempted + solved problems from both users
     const excludedProblems = new Set([
-      ...userA.solvedProblems,
-      ...userB.solvedProblems,
+      ...(userA.solvedProblems || []),
+      ...(userB.solvedProblems || []),
+      ...(userA.attemptedProblems || []),
+      ...(userB.attemptedProblems || []),
     ]);
 
     // Select problem STRICTLY of that exact rating
-    const problem = selectProblem(rating, rating, excludedProblems);
+    const problem = await selectProblem(rating, rating, excludedProblems);
 
     if (!problem) {
       await redis.lpush(queueKey, opponentSocket);
       return res.status(500).json({ error: "No unsolved problem available" });
     }
 
+    // Track this problem as attempted for both users (atomic)
+    await Promise.all([
+      User.updateOne({ username: userA.username }, { $addToSet: { attemptedProblems: problem.id } }),
+      User.updateOne({ username: userB.username }, { $addToSet: { attemptedProblems: problem.id } }),
+    ]);
+
     const roomId = `room_${Date.now()}`;
     const startTime = Date.now();
 
     createRoom(roomId, problem, [userA.username, userB.username], startTime);
+    
+    // Store persistence tokens
+    await redis.set(`activeMatch:${userA.username}`, roomId);
+    await redis.set(`activeMatch:${userB.username}`, roomId);
 
     io.to(socketId).emit("match_found", { roomId, problem });
     io.to(opponentSocket).emit("match_found", { roomId, problem });

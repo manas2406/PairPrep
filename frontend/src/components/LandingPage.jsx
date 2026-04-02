@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Swords, Zap, Trophy, Users, Code, Target, ArrowRight } from "lucide-react";
 
@@ -53,6 +54,26 @@ const HowItWorksStep = ({
 );
 
 const LandingPage = () => {
+  const [stats, setStats] = useState({
+    problems: "1.5K+",
+    battles: "50+",
+    players: "140+"
+  });
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/stats`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+           setStats({
+             problems: data.problems?.toLocaleString() || "1.5K+",
+             battles: data.battles?.toLocaleString() || "50+",
+             players: data.players?.toLocaleString() || "140+"
+           });
+        }
+      }).catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -124,9 +145,9 @@ const LandingPage = () => {
               className="mt-16 grid grid-cols-3 gap-8 border-t border-border/50 pt-8"
             >
               {[
-                { value: "10K+", label: "Problems" },
-                { value: "50K+", label: "Battles" },
-                { value: "5K+", label: "Players" },
+                { value: stats.problems, label: "Problems" },
+                { value: stats.battles, label: "Battles" },
+                { value: stats.players, label: "Players" },
               ].map((stat) => (
                 <div key={stat.label}>
                   <div className="font-mono text-3xl font-bold text-primary">{stat.value}</div>
