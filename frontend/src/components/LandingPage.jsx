@@ -59,6 +59,7 @@ const LandingPage = () => {
     battles: "50+",
     players: "140+"
   });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/stats`)
@@ -72,6 +73,8 @@ const LandingPage = () => {
            });
         }
       }).catch(() => {});
+      
+    setIsLoggedIn(!!sessionStorage.getItem("token"));
   }, []);
 
   return (
@@ -123,18 +126,20 @@ const LandingPage = () => {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
-              <Link href="/signup">
+              <Link href={isLoggedIn ? "/dashboard" : "/signup"}>
                 <Button variant="hero" size="xl" className="group">
-                  Start Battling
-                  <Swords className="h-5 w-5 transition-transform group-hover:rotate-12" />
+                  {isLoggedIn ? "Go to Dashboard" : "Start Battling"}
+                  {isLoggedIn ? <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" /> : <Swords className="h-5 w-5 transition-transform group-hover:rotate-12" />}
                 </Button>
               </Link>
-              <Link href="/login">
-                <Button variant="glass" size="xl">
-                  I Have an Account
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
+              {!isLoggedIn && (
+                <Link href="/login">
+                  <Button variant="glass" size="xl">
+                    I Have an Account
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
             </motion.div>
 
             {/* Stats */}

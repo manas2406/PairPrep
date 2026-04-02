@@ -117,7 +117,7 @@ async function startMatch(req, res) {
     });
   } catch (err) {
     console.error("Matchmaking error:", err);
-    return res.status(500).json({ error: "Matchmaking failed" });
+    return res.status(500).json({ error: `System Error: ${err.message}` });
   }
 }
 
