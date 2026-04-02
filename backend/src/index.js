@@ -1,4 +1,5 @@
-require("dotenv").config(); // MUST be first line
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") }); // Loads from src/.env locally; on Render, env vars are injected by the platform
 const express = require("express");
 const cors = require("cors");
 const User = require("./models/User");
@@ -193,6 +194,6 @@ io.on("connection", (socket) => {
 connectDB();
 
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Backend + WebSocket running on port ${PORT}`);
 });
