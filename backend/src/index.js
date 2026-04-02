@@ -130,7 +130,8 @@ io.on("connection", (socket) => {
           socket.join(activeRoomId);
           socket.emit("match_reconnect", {
              roomId: activeRoomId,
-             problem: room.problem
+             problem: room.problem,
+             chat: room.chat || []
           });
           console.log(`User ${userId} reconnected to ${activeRoomId}`);
         } else {
@@ -147,13 +148,19 @@ io.on("connection", (socket) => {
     const sender = getUserBySocket(socket.id);
 
     if (!sender) return;
-    console.log("CHAT:", roomId, message);
-    console.log("EMITTING to room:", roomId, io.sockets.adapter.rooms.get(roomId));
-    io.to(roomId).emit("chat_message", {
+    
+    // Persist chat in memory
+    const room = getRoom(roomId);
+    const msgObj = {
       userId: sender,
       message,
       time: Date.now(),
-    });
+    };
+    if (room && room.chat) {
+        room.chat.push(msgObj);
+    }
+
+    io.to(roomId).emit("chat_message", msgObj);
   });
   socket.on("join_room", ({ roomId }) => {
     socket.join(roomId);
@@ -196,22 +203,8 @@ io.on("connection", (socket) => {
       // Cleanup ghost socket from ALL rate queues aggressively
       (async () => {
          try {
-            const activeRoomId = await redis.get(`activeMatch:${userId}`);
-            if (activeRoomId) {
-               const room = getRoom(activeRoomId);
-               if (room && !room.finished) {
-                   const { finishRoom } = require("./store/rooms");
-                   finishRoom(activeRoomId, "FORFEIT");
-                   const winnerUserId = room.participants.find(p => p !== userId);
-                   if (winnerUserId) {
-                      const { applyMatchResult } = require("./controllers/submission.controller");
-                      // Broadcast result first so the opponent sees the win
-                      await applyMatchResult(room, winnerUserId, io, activeRoomId);
-                      console.log(`User ${userId} disconnected. Forfeited match to ${winnerUserId}`);
-                   }
-               }
-            }
-         } catch(e) { console.error("Disconnect Forfeit Error:", e); }
+            // Note: Explicitly NOT auto-forfeiting here to allow Graceful Reconnects!
+         } catch(e) {}
       })();
     }
   });

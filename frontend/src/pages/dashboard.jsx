@@ -126,7 +126,7 @@ const Dashboard = () => {
                     <h1 className="font-display text-3xl font-bold mb-2">
                         Welcome back, <span className="text-primary">{user.username}</span>
                     </h1>
-                    <p className="text-muted-foreground">Codeforces Handle: {user.cfHandle} | Ready for your next battle?</p>
+                    <p className="text-muted-foreground">Codeforces Handle: <span className="font-mono text-primary font-bold">{user.cfHandle || 'Not Linked'}</span> | Ready for your next battle?</p>
                 </motion.div>
 
                 {/* Matchmaking Controls */}
@@ -255,7 +255,9 @@ const Dashboard = () => {
                                                             {opponent?.[0] || "?"}
                                                         </div>
                                                         <div>
-                                                            <p className="font-medium">{opponent}</p>
+                                                            <Link href={`/profile/${opponent}`} className="font-medium hover:underline text-accent">
+                                                                {opponent}
+                                                            </Link>
                                                         </div>
                                                     </div>
                                                 </td>

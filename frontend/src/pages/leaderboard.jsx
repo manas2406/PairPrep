@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Trophy, TrendingUp, Medal } from "lucide-react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -83,7 +84,9 @@ export default function Leaderboard() {
                                             </div>
                                         </td>
                                         <td className="p-4 font-medium">
-                                            {user.username}
+                                            <Link href={`/profile/${user.username}`} className="hover:underline text-accent font-bold">
+                                                {user.username}
+                                            </Link>
                                             {user.rank <= 3 && (
                                                 <TrendingUp className="inline-block h-3 w-3 text-accent ml-2 relative -top-0.5" />
                                             )}

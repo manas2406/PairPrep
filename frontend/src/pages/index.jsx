@@ -115,7 +115,7 @@ export default function Home() {
             setRoomId(data.roomId);
             setProblem(data.problem);
             setStatus("Matched");
-            setMessages([]);
+            setMessages(data.chat || []);
             setResult(null);
             setSubmissionId("");
             setError(null);
@@ -272,7 +272,7 @@ export default function Home() {
         }
     }
 
-    /* ---------------- LEAVE ROOM ---------------- */
+    /* ---------------- LEAVE ROOM (SURRENDER) ---------------- */
     function leaveRoom() {
         if (!socketRef.current || !roomId) return;
 
@@ -284,6 +284,7 @@ export default function Home() {
         setSubmissionId("");
         setResult(null);
         setError(null);
+        toast({ title: "Match Surrendered", description: "You abandoned the match. Rating penalty applied.", variant: "destructive" });
         router.push("/dashboard");
     }
 
@@ -330,6 +331,11 @@ export default function Home() {
                 <div className="container mx-auto flex h-14 items-center justify-between px-4">
                     <div className="flex items-center gap-4">
                         <span className="font-display font-bold">Match Status: {status}</span>
+                        {roomId && !result && (
+                            <Button variant="destructive" size="sm" onClick={leaveRoom} className="ml-4">
+                                Surrender
+                            </Button>
+                        )}
                     </div>
 
                     {/* Timer */}

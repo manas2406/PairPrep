@@ -20,6 +20,7 @@ function createRoom(roomId, problem, participants, startedAt) {
     participants,
     startedAt,
     submissions: {},
+    chat: [],
     winner: null,
     finished: false,
   });

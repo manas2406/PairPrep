@@ -188,4 +188,15 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.get("/profile/:username", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username }, "-password -__v");
+    if (!user) return res.status(404).json({ error: "User not found" });
+    return res.json(user);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
 module.exports = router;
