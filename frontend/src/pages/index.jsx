@@ -197,11 +197,19 @@ export default function Home() {
             if (!res.ok) {
                 const err = await res.json();
                 toast({ title: "Matchmaking Failed", description: err.error || "Unknown error", variant: "destructive" });
-                setStatus("Idle");
+                if (sessionStorage.getItem("token")) {
+                    router.push("/dashboard");
+                } else {
+                    setStatus("Idle");
+                }
             }
         } catch (err) {
             toast({ title: "Matchmaking Error", description: "Could not connect to server", variant: "destructive" });
-            setStatus("Idle");
+            if (sessionStorage.getItem("token")) {
+                router.push("/dashboard");
+            } else {
+                setStatus("Idle");
+            }
         }
     }
 

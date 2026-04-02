@@ -2,7 +2,7 @@ const redis = require("../redis");
 const User = require("../models/User");
 const { selectProblem } = require("../utils/problemSelector");
 const { getUserBySocket } = require("../store/sockets");
-const { createRoom } = require("../store/rooms");
+const { createRoom, getRoom } = require("../store/rooms");
 
 const QUEUE_PREFIX = "pairprep:queue:";
 
@@ -33,7 +33,11 @@ async function startMatch(req, res) {
     // Check if user is already in an active room
     const currentRoom = await redis.get(`activeMatch:${currentUserId}`);
     if (currentRoom) {
-        return res.status(400).json({ error: "You are already in an active match. Please reconnect." });
+        if (!getRoom(currentRoom)) {
+            await redis.del(`activeMatch:${currentUserId}`);
+        } else {
+            return res.status(400).json({ error: "You are already in an active match. Please reconnect." });
+        }
     }
 
     // Remove user explicitly from queue to prevent duplicates if they dropped out previously
@@ -54,7 +58,11 @@ async function startMatch(req, res) {
             // make sure opponent isn't in an active match somehow
             const oppRoom = await redis.get(`activeMatch:${opponentUserId}`);
             if (oppRoom) {
-               continue;
+               if (!getRoom(oppRoom)) {
+                   await redis.del(`activeMatch:${opponentUserId}`);
+               } else {
+                   continue;
+               }
             }
             break; // found valid opponent
         }
